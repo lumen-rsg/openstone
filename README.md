@@ -2,7 +2,7 @@
 
 OpenStone is an open-source visual programming environment for audio, MIDI, and interactive interfaces, inspired by FlowStone. Connect primitives, group them into reusable modules, and write DSP, Assembler, or Ruby code alongside the schematic.
 
-**OpenStone is an experimental project.** The editor and runtimes are usable for testing, but compatibility is still in progress. FlowStone schematic import is partial; importing a file does not guarantee that it will render or behave identically. Development and validation currently center on macOS, with Windows and Linux validation still needed.
+**OpenStone is an experimental project.** The editor and runtimes are usable for testing, but compatibility is still in progress. FlowStone schematic import is partial; importing a file does not guarantee that it will render or behave identically. Development and validation began on macOS. Initial Linux build, automated-test, and virtual-display checks are documented in [Testing](docs/testing.md#linux); Windows validation is still needed.
 
 ## What is here
 

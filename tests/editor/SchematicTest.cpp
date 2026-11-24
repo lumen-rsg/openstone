@@ -8867,8 +8867,8 @@ void genericTriggerComparisonsGateEveryIncomingPulse()
     const int right = graph.addNode(Float, 0, 80, 2.0F);
     const int triggerA = graph.addNode(Trigger, 0, 160);
     const int triggerB = graph.addNode(Trigger, 0, 240);
-    constexpr std::array kinds{EqualTrigger, LessThanTrigger, LessThanOrEqualTrigger,
-                               GreaterThanTrigger, GreaterThanOrEqualTrigger};
+    static constexpr std::array kinds{EqualTrigger, LessThanTrigger, LessThanOrEqualTrigger,
+                                      GreaterThanTrigger, GreaterThanOrEqualTrigger};
     std::array<int, kinds.size()> gates;
     std::array<int, kinds.size()> counters;
     for (std::size_t i = 0; i < kinds.size(); ++i) {

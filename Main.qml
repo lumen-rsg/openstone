@@ -23,6 +23,11 @@ ApplicationWindow {
     palette.text: Theme.text
     palette.button: Theme.surface
     palette.buttonText: Theme.text
+    palette.light: Theme.surface
+    palette.midlight: Theme.hover
+    palette.mid: Theme.outline
+    palette.dark: Theme.divider
+    palette.shadow: Theme.canvas
     palette.highlight: Theme.selection
     palette.highlightedText: Theme.text
     palette.placeholderText: Theme.mutedText

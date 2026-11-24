@@ -2,6 +2,40 @@
 
 Build and run the suite with the [README commands](../README.md#build). A desktop build adds Qt persistence, importer, settings, and Ruby tests. Ruby tests report a CTest skip when no Ruby runtime is available. Enabling `OPENSTONE_ENABLE_LLVM_ORC` exercises the interpreter and LLVM ORC in the DSP regression tests.
 
+## Linux
+
+The initial Linux validation used Fedora 45 x86-64, GCC 16.2.1, CMake 4.3.0,
+Qt 6.11.2, PortAudio 19.7.0, RtMidi 6.0.0, and Ruby 4.0.9. With Debug builds,
+the interpreter backend, and `OPENSTONE_BUILD_ASSEMBLER_AUDIT=ON`, all 35
+headless tests and all 39 desktop-build tests passed. The latter includes the
+same core tests plus settings, importer, sequencer-project, and Ruby tests.
+
+For a Fedora development environment, install the build dependencies:
+
+```sh
+sudo dnf install gcc-c++ cmake ninja-build python3 zlib-devel \
+  qt6-qtbase-devel qt6-qtbase-private-devel qt6-qtdeclarative-devel \
+  qt6-qtshadertools-devel qt6-qtsvg-devel qt6-qtserialport-devel \
+  qt6-qtmultimedia-devel portaudio-devel rtmidi-devel \
+  ruby ruby-bundled-gems rubygem-json
+cmake -S . -B build/linux-desktop -G Ninja \
+  -DCMAKE_BUILD_TYPE=Debug -DOPENSTONE_BUILD_ASSEMBLER_AUDIT=ON
+cmake --build build/linux-desktop --parallel 4
+ctest --test-dir build/linux-desktop --output-on-failure
+./build/linux-desktop/OpenStone
+```
+
+Use a separate build directory and add `-DOPENSTONE_BUILD_DESKTOP=OFF` for the
+headless configuration. Its dependencies are the C/C++ toolchain, CMake, Ninja,
+and Python 3.9 or newer for the optional assembler audit.
+
+The desktop smoke check used Xvfb with `QT_QPA_PLATFORM=xcb` and
+`QT_QUICK_BACKEND=software`. It covered startup, node creation, value editing,
+wiring, and project save/reopen. This does not qualify a physical display/GPU,
+Wayland, live audio/MIDI/serial devices, the LLVM ORC backend, optimized builds,
+or other Linux distributions. Private FlowStone subchecks remained skipped as
+described below.
+
 ## Public fixtures
 
 The repository includes OpenStone-authored DSP/Assembler probes, generated data, and numeric traces captured for compatibility checks. Their provenance, input sequences, expected outputs, and remaining uncertainty are documented in [the fixture notes](../tests/fixtures/flowstone/README.md).

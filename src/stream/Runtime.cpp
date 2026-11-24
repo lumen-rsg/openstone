@@ -1315,7 +1315,7 @@ typename Runtime<Sample>::VoicePacket Runtime<Sample>::makeVoicePacket(std::arra
         slots = std::max(slots, program.slotCount);
         stack = std::max(stack, program.stackSize);
     }
-    packet.slots.resize(slots);
+    packet.dspSlots.resize(slots);
     packet.stack.resize(stack);
     return packet;
 }
@@ -1331,29 +1331,29 @@ void Runtime<Sample>::processVoiceDsp(VoicePacket& packet, std::size_t block, un
         auto* voice = packet.voices[lane];
         if (voice && (active & (1U << lane)) && loadInputs) voice->loadDspInputs(voice->dspBlocks_[block], stage);
         for (std::size_t slot = 0; slot < program.slotCount; ++slot) {
-            packet.slots[slot][lane] = voice && (active & (1U << lane)) ? voice->dspBlocks_[block].dspSlots[slot][0] : 0;
+            packet.dspSlots[slot][lane] = voice && (active & (1U << lane)) ? voice->dspBlocks_[block].dspSlots[slot][0] : 0;
         }
     }
     // Incoming values describe one physical SSE packet, like the shared frame image.
-    loadIncomingXmm(shared, stage, stage == 0 ? 0 : packet.frame, packet.slots);
+    loadIncomingXmm(shared, stage, stage == 0 ? 0 : packet.frame, packet.dspSlots);
     shared.references.samplePosition = packet.samplePosition;
     prepareDspNativeFrame(shared.references, packet.nativeFramePosition, true, active, packet.gates, packet.voiceSlots);
     if (shared.native) {
-        shared.native->stages[stage](packet.slots.data(), shared.arrays.data(), &shared.references, stage == 0 ? 0 : packet.frame);
+        shared.native->stages[stage](packet.dspSlots.data(), shared.arrays.data(), &shared.references, stage == 0 ? 0 : packet.frame);
     } else {
-        runDspStage(program.stages[stage], std::span{packet.slots}.first(program.slotCount),
+        runDspStage(program.stages[stage], std::span{packet.dspSlots}.first(program.slotCount),
                     shared.arrays, shared.references, packet.stack, stage == 0 ? 0 : packet.frame);
     }
     for (std::size_t lane = 0; lane < 4; ++lane) {
         auto* voice = packet.voices[lane];
         if (!voice || !(writeMask & (1U << lane))) continue;
         auto& state = voice->dspBlocks_[block];
-        for (std::size_t slot = 0; slot < program.slotCount; ++slot) state.dspSlots[slot][0] = packet.slots[slot][lane];
+        for (std::size_t slot = 0; slot < program.slotCount; ++slot) state.dspSlots[slot][0] = packet.dspSlots[slot][lane];
         for (std::size_t port = 0; port < program.outputs.size(); ++port) {
             if (!program.publishesOutput(port, stage)) continue;
             const auto type = dspPortType(program.outputs[port].type);
             constexpr auto target = std::same_as<Sample, MonoDouble> ? DspType::Double : DspType::Float;
-            const auto bits = dspConvert(packet.slots[program.outputSlots[port]][lane], type, target);
+            const auto bits = dspConvert(packet.dspSlots[program.outputSlots[port]][lane], type, target);
             if constexpr (std::same_as<Sample, float>) voice->samples_[index(state.block.outputs[port])] = std::bit_cast<float>(static_cast<std::uint32_t>(bits));
             else voice->samples_[index(state.block.outputs[port])] = std::bit_cast<double>(bits);
         }

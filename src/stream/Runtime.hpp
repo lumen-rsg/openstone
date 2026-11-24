@@ -296,7 +296,7 @@ private:
     // Scalar graph state remains private to each voice. Only DSP stages share an SSE packet.
     struct VoicePacket {
         std::array<Runtime*, 4> voices{};
-        std::vector<DspLanes> slots;
+        std::vector<DspLanes> dspSlots;
         std::vector<DspValue> stack;
         std::uint64_t frame{};
         std::uint32_t samplePosition{};
