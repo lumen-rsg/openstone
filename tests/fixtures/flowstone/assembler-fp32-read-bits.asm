@@ -1,0 +1,13 @@
+streamin in;
+streamout lowBits;
+streamout highBits;
+int low=0x0000ffff;
+movaps xmm0,in;
+pand xmm0,low;
+cvtdq2ps xmm0,xmm0;
+movaps lowBits,xmm0;
+movaps xmm0,in;
+psrld xmm0,16;
+pand xmm0,low;
+cvtdq2ps xmm0,xmm0;
+movaps highBits,xmm0;

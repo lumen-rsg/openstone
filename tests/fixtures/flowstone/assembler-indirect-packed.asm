@@ -1,0 +1,23 @@
+streamin in;
+memrefin buffer;
+streamout out;
+float weights = {0.5,1,2,4};
+mov rax,buffer[0];
+cmp rax,0;
+jz done;
+movaps xmm0,in;
+shufps xmm0,xmm0,0;
+addps xmm0,weights;
+movaps [rax],xmm0;
+movaps xmm1,[rax];
+movaps xmm2,xmm1;
+shufps xmm2,xmm2,85;
+addps xmm1,xmm2;
+movaps xmm2,[rax];
+shufps xmm2,xmm2,170;
+addps xmm1,xmm2;
+movaps xmm2,[rax];
+shufps xmm2,xmm2,255;
+addps xmm1,xmm2;
+movaps out,xmm1;
+done:

@@ -1,0 +1,146 @@
+Module label,Archive path
+0-1 Timed Counter,Modules\0-1 Timed Counter.hom
+0-1 Timed Counter-1,Modules\0-1 Timed Counter-1.hom
+0-1 To Hz,Modules\0-1 To Hz.hom
+ADSR,Modules\ADSR.hom
+AHD,Modules\AHD.hom
+AHDSR,Modules\AHDSR.hom
+AHDSR-1,Modules\AHDSR-1.hom
+Additive Osc,Modules\Additive Osc.hom
+Alpha Switch,Modules\Alpha Switch.hom
+Amp,Modules\Amp.hom
+Audio Menu,Modules\Audio Menu.hom
+Audio Selector,Modules\Audio Selector.hom
+Auto Correlation,Modules\Auto Correlation.hom
+Bitmap,Modules\Bitmap.hom
+Bitmap Button,Modules\Bitmap Button.hom
+Bitmap Toggle Button,Modules\Bitmap Toggle Button.hom
+Bitmap-Strip Button,Modules\Bitmap-Strip Button.hom
+Bitmap-Strip LED-Indicator,Modules\Bitmap-Strip LED-Indicator.hom
+Bitmap-Strip State,Modules\Bitmap-Strip State.hom
+Bitmap-Strip Toggle Button,Modules\Bitmap-Strip Toggle Button.hom
+ChorusFlanger,Modules\ChorusFlanger.hom
+Clip,Modules\Clip.hom
+Comment,Modules\Comment.hom
+Compressor,Modules\Compressor.hom
+Cross Correlation,Modules\Cross Correlation.hom
+D,Modules\D.hom
+DeZip,Modules\DeZip.hom
+Delay,Modules\Delay.hom
+Denormal Remover (Bitmask),Modules\Denormal Remover (Bitmask).hom
+Denormal Remover (Noise),Modules\Denormal Remover (Noise).hom
+Denormal Remover (Trunc),Modules\Denormal Remover (Trunc).hom
+Detuner,Modules\Detuner.hom
+Display Window,Modules\Display Window.hom
+Distortion,Modules\Distortion.hom
+Double Stream Biquad (DF1),Modules\Double Stream Biquad (DF1).hom
+Double Stream Biquad (DF2),Modules\Double Stream Biquad (DF2).hom
+Double Stream Biquad (TDF1),Modules\Double Stream Biquad (TDF1).hom
+Double Stream Biquad (TDF2),Modules\Double Stream Biquad (TDF2).hom
+Echo Delay,Modules\Echo Delay.hom
+Edit Box,Modules\Edit Box.hom
+Envelope Follower,Modules\Envelope Follower.hom
+FFT Display,Modules\FFT Display.hom
+FM De-modulator,Modules\FM De-modulator.hom
+FM Modulator,Modules\FM Modulator.hom
+Fast Power,Modules\Fast Power.hom
+Float Array Reader,Modules\Float Array Reader.hom
+Float DeZip,Modules\Float DeZip.hom
+Float Graph Recorder,Modules\Float Graph Recorder.hom
+Graph Animator,Modules\Graph Animator.hom
+Graph Display,Modules\Graph Display.hom
+Graph Shaper,Modules\Graph Shaper.hom
+Group Adornment,Modules\Group Adornment.hom
+Hysteresis Gate,Modules\Hysteresis Gate.hom
+Hz To 0-1,Modules\Hz To 0-1.hom
+Interpolated Delay,Modules\Interpolated Delay.hom
+Inverse Kinematics,Modules\Inverse Kinematics.hom
+Knob - Animated,Modules\Knob - Animated.hom
+Knob - Static,Modules\Knob - Static.hom
+Knob - Static With Gauge,Modules\Knob - Static With Gauge.hom
+LED-Indicator,Modules\LED-Indicator.hom
+Label,Modules\Label.hom
+MIDI In Selector,Modules\MIDI In Selector.hom
+MIDI Out Selector,Modules\MIDI Out Selector.hom
+MIDI to Poly,Modules\MIDI to Poly.hom
+Meter - Bi-directional,Modules\Meter - Bi-directional.hom
+Meter - LED,Modules\Meter - LED.hom
+Meter - Positive,Modules\Meter - Positive.hom
+Meter - Vintage,Modules\Meter - Vintage.hom
+Meter - dB,Modules\Meter - dB.hom
+Midi-CC Encode,Modules\Midi-CC Encode.hom
+Mono Bool Readout,Modules\Mono Bool Readout.hom
+Mono Double Readout,Modules\Mono Double Readout.hom
+Mono Readout,Modules\Mono Readout.hom
+Mono Stream FFT Display,Modules\Mono Stream FFT Display.hom
+Mono Stream Graph Display,Modules\Mono Stream Graph Display.hom
+Mono Stream Record Samples,Modules\Mono Stream Record Samples.hom
+Moog Filter,Modules\Moog Filter.hom
+Multi LFO,Modules\Multi LFO.hom
+Multi Osc,Modules\Multi Osc.hom
+Multi Sample,Modules\Multi Sample.hom
+Multi Sample Advanced,Modules\Multi Sample Advanced.hom
+Multi Stage Envelope,Modules\Multi Stage Envelope.hom
+Noise Gate,Modules\Noise Gate.hom
+Overdrive,Modules\Overdrive.hom
+PWM,Modules\PWM.hom
+Packed Mono Double Readout,Modules\Packed Mono Double Readout.hom
+Packed Mono Readout,Modules\Packed Mono Readout.hom
+Packed Poly Bool Readout,Modules\Packed Poly Bool Readout.hom
+Packed Poly Double Readout,Modules\Packed Poly Double Readout.hom
+Packed Poly Readout,Modules\Packed Poly Readout.hom
+Parametric EQ,Modules\Parametric EQ.hom
+Phase Invert,Modules\Phase Invert.hom
+Ping-Pong Delay,Modules\Ping-Pong Delay.hom
+Poly Bool Readout,Modules\Poly Bool Readout.hom
+Poly Readout,Modules\Poly Readout.hom
+Poly Stream FFT Display,Modules\Poly Stream FFT Display.hom
+Poly Stream Graph Display,Modules\Poly Stream Graph Display.hom
+Poly Stream Record Samples,Modules\Poly Stream Record Samples.hom
+Preset Manager,Modules\Preset Manager.hom
+Property Knob,Modules\Property Knob.hom
+R,Modules\R.hom
+Reverb,Modules\Reverb.hom
+Routing Matrix,Modules\Routing Matrix.hom
+Running Average,Modules\Running Average.hom
+Sample Rate Selector,Modules\Sample Rate Selector.hom
+Sample and Hold,Modules\Sample and Hold.hom
+Save Image,Modules\Save Image.hom
+Scope,Modules\Scope.hom
+Scope - Dual,Modules\Scope - Dual.hom
+Scrollable Area,Modules\Scrollable Area.hom
+Scrollbar,Modules\Scrollbar.hom
+Selector,Modules\Selector.hom
+Slew Limiter,Modules\Slew Limiter.hom
+Slider - Horizontal,Modules\Slider - Horizontal.hom
+Slider - Verticsl,Modules\Slider - Verticsl.hom
+Soft Clip,Modules\Soft Clip.hom
+Split View,Modules\Split View.hom
+State Variable Filter,Modules\State Variable Filter.hom
+Step LFO,Modules\Step LFO.hom
+Stereo Amp,Modules\Stereo Amp.hom
+Stereo Amp - WIth Gauge,Modules\Stereo Amp - WIth Gauge.hom
+Stereo Chorus,Modules\Stereo Chorus.hom
+Stereo Clip,Modules\Stereo Clip.hom
+Stream Biquad (DF1),Modules\Stream Biquad (DF1).hom
+Stream Biquad (DF2),Modules\Stream Biquad (DF2).hom
+Stream Biquad (TDF1),Modules\Stream Biquad (TDF1).hom
+Stream Biquad (TDF2),Modules\Stream Biquad (TDF2).hom
+Stream Power,Modules\Stream Power.hom
+Switch,Modules\Switch.hom
+Switch - Button,Modules\Switch - Button.hom
+Switch - Flick,Modules\Switch - Flick.hom
+Switch - LED,Modules\Switch - LED.hom
+Text Button,Modules\Text Button.hom
+Text State,Modules\Text State.hom
+Text Toggle Button,Modules\Text Toggle Button.hom
+Text View,Modules\Text View.hom
+Ticker - Custom,Modules\Ticker - Custom.hom
+Trigger Counter,Modules\Trigger Counter.hom
+Trigger De-Thread,Modules\Trigger De-Thread.hom
+VST,Modules\VST.hom
+VSTi,Modules\VSTi.hom
+Wave Draw Osc,Modules\Wave Draw Osc.hom
+Wave Player,Modules\Wave Player.hom
+Waveshaper,Modules\Waveshaper.hom
+White Noise Generator,Modules\White Noise Generator.hom

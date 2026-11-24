@@ -1,0 +1,413 @@
+{
+  "notice": "Reference sources extracted from FlowStone are not redistributed. Supply these privately to run the dependent checks.",
+  "files": {
+    "engine-sample-index-float-x64.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5824834,
+      "length": 131,
+      "sha256": "13f25f1338468a41d483cdcca2079773124d9972f4fc2622310057b72d99ab11"
+    },
+    "assembler-double-round.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5821410,
+      "length": 160,
+      "sha256": "785141e572046e6d7ac7867bb470eb399463c1f11dd237dc031f10f5c24ad4e9"
+    },
+    "engine-float-sign.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5766578,
+      "length": 65,
+      "sha256": "84e36ec3da5afb4a41aa0baec49a6f08f9003859f29f7de4ca17e4ad9cdcd763"
+    },
+    "assembler-mem-byte-writer.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 8039388,
+      "length": 1418,
+      "sha256": "e3c5def02968a1d5407dcc2ed47a4e80f3cb835f605f9c116e18ff672db0cdf5"
+    },
+    "engine-float-to-double-add.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5270701,
+      "length": 128,
+      "sha256": "c62c937eb97a8e634623a71175497866e2265ae62e99991ea3008b0d630ed827"
+    },
+    "engine-frame-mask-read-x64.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5803300,
+      "length": 77,
+      "sha256": "95f50cb68df24e1f5e1dfcb05b8d473f5579c9fd21b63fb9751d1c2232a4de27"
+    },
+    "assembler-stage-delay1-double.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5751490,
+      "length": 228,
+      "sha256": "9b3aebf8973b09063219be6c9970a95319ea2bbc7244f09e240e79aa30ecb4c7"
+    },
+    "engine-buffer-table-x86.asm": {
+      "source": "x86/FlowStone.exe",
+      "normalized_offset": 4656768,
+      "length": 522,
+      "sha256": "134224f398d7fcb74dd4150069381c07a003b9aa1f2ef9dd01221d4919ea9e12"
+    },
+    "engine-bound-double-counter.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5744514,
+      "length": 250,
+      "sha256": "2f9d28e781b04bfeaf0085d4bbcaa673b0cf2d46dcfa7d23e0a68b76e6bc48a8"
+    },
+    "assembler-double-equal.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5737506,
+      "length": 177,
+      "sha256": "02e6b26e479d69f496a51cc111dbb63d46d75250b4727035b843a92c1ee81666"
+    },
+    "compressor-power.asm": {
+      "source": "Modules/Compressor.hom",
+      "normalized_offset": 17959,
+      "length": 2146,
+      "sha256": "4848cb2b60863f519a190f8562922c15f3fbb6327b9d39b22e68e4498bcd1ec6"
+    },
+    "engine-double-to-float-move.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5270173,
+      "length": 111,
+      "sha256": "a17c46a7a80676a8f00e106f7fe4908fe99297dae94f2c3554c67d860b62e6df"
+    },
+    "assembler-double-greater-equal.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5737314,
+      "length": 177,
+      "sha256": "fb2ac91f4e56a53ad7af400b7af9bad23899087cbf576f9d441a6147b849c83c"
+    },
+    "engine-buffer-transfer-x64.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5478490,
+      "length": 574,
+      "sha256": "fc7080d97b8f966a862064a9a1fa88912707d251f56c4a91710feda4deafa695"
+    },
+    "engine-bound-double-read.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5723138,
+      "length": 122,
+      "sha256": "15c8c44e548af39e6d5d1229a98e59359eb61e846700a06cc96e02b8a5989b78"
+    },
+    "assembler-double-less.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5736738,
+      "length": 177,
+      "sha256": "0b879cd07047e4cb7bec40b83a90909aab84cc37763ba3c0a68ba9034d369b59"
+    },
+    "engine-float-floor.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5818834,
+      "length": 122,
+      "sha256": "2dc5aa95d3150a49dd766a3680e599d863fa716fa03c9d48039c9c5e560f2936"
+    },
+    "engine-bound-double-pair-x64.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5846898,
+      "length": 256,
+      "sha256": "6693c58132d64d139497d454798122ec12b71dd68ecc1ab0e6f3ce4c31eb9e9d"
+    },
+    "mem-reader-byte.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 8099878,
+      "length": 765,
+      "sha256": "dae4ad33abd52942ac512ece19b31cb4b981496760bfb093cab989b2991fa752"
+    },
+    "assembler-envelope-legacy.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 7935314,
+      "length": 5781,
+      "sha256": "eb51a0124337ab9d213586848e624995e730af95f767aba3e454cd10a760e34f"
+    },
+    "assembler-double-pack.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5794962,
+      "length": 205,
+      "sha256": "84b772250b94f2920b93cc565c5cf8f91877a6b5d7793a1c39103b11ea3a1da4"
+    },
+    "assembler-stage-delay1-float.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5749922,
+      "length": 96,
+      "sha256": "0c20ee459f935f133f1d6018c9cb39f47de803d635c24f8bd88074f5922efb81"
+    },
+    "assembler-double-unpack.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5855314,
+      "length": 247,
+      "sha256": "f79d7258b05f71f53cc77bb4fa2e36a3be5ece38ff153f03733cf1eb7cf86bc8"
+    },
+    "engine-bound-float-read.asm": {
+      "source": "x86/FlowStone.exe",
+      "normalized_offset": 5080116,
+      "length": 83,
+      "sha256": "31a7e89ba01be2149ea260da2e86def7be1fed0c8b822059acb8c8704de2ca82"
+    },
+    "engine-double-sign.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5769810,
+      "length": 184,
+      "sha256": "7545fae03126fcf665b046e01b31bbf37449e2335a067d14458bd44ff92261b3"
+    },
+    "assembler-double-less-equal.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5737122,
+      "length": 177,
+      "sha256": "64bf85ef4724b9a8c7dfff3756f302b4975737e451b161e798b67883a5595561"
+    },
+    "engine-dezipper-compact-x86.asm": {
+      "source": "x86/FlowStone.exe",
+      "normalized_offset": 5103340,
+      "length": 337,
+      "sha256": "fc0139f23d1323a423d0eabce774d27dcca00c4cc52d8c46e6446b46bc340b67"
+    },
+    "engine-mem-reader-hop-x86.asm": {
+      "source": "x86/FlowStone.exe",
+      "normalized_offset": 5168212,
+      "length": 979,
+      "sha256": "656d4964077b6fc14e3262e4d27c249aecc8015ab14fb914ae6676c08d428f8d"
+    },
+    "assembler-incoming-clock-smooth.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 7945635,
+      "length": 177,
+      "sha256": "6259120a929537ab78afc11ddc374831f340fcaed5e4805018d84808459935e8"
+    },
+    "engine-frame-load-float.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5269877,
+      "length": 56,
+      "sha256": "212c1294f742bac39a123ab962278ef7032e88b1e12d8acda4ba93d30c354f7f"
+    },
+    "engine-mem-writer-stereo.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5866466,
+      "length": 928,
+      "sha256": "a94c4cdbee4039dc8265b148c92b687bc6b3fa7ed9a5545a1cce4306a537a8a3"
+    },
+    "assembler-interpolation-weights.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 8092838,
+      "length": 526,
+      "sha256": "3584d3d3029cfcd21784f6f24fc7a9951b5d39f126441b8aae4fc9654ac1f6f5"
+    },
+    "engine-float-ceiling.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5818962,
+      "length": 121,
+      "sha256": "13b9bce06d5e7a6e32dbf840bf21a1b63428e5999ad26f3a53446cabd4ea03a9"
+    },
+    "engine-double-ceiling.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5821106,
+      "length": 302,
+      "sha256": "15fd5c5dca77de76e878ed0124934ab143a0fbb4c9902c9feb37bcf1b6b06fe4"
+    },
+    "assembler-double-truncate.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5820610,
+      "length": 162,
+      "sha256": "0f2c1d9e23f70282f5f0f244552055029cc25f7ef41ad77420cb4267a3e3b3f6"
+    },
+    "engine-sample-index-double-x64.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5826482,
+      "length": 156,
+      "sha256": "a78ae3bec56432b7635c9d72eaa07519f83517586160771ed2edb71fe84fd20f"
+    },
+    "denormal-mask.asm": {
+      "source": "Modules/Denormal Remover (Bitmask).hom",
+      "normalized_offset": 553,
+      "length": 150,
+      "sha256": "7d4208e8a94e5fb21f8a977a4ed3f47b27805d4e15500737623d728d99144529"
+    },
+    "engine-bound-double-counter-x86.asm": {
+      "source": "x86/FlowStone.exe",
+      "normalized_offset": 5094932,
+      "length": 256,
+      "sha256": "63df00a0e86dcd4f0e3041bde1a92a04f7bb1f355630fc77e6e5561261739272"
+    },
+    "assembler-memarray-flat-reader.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 8102944,
+      "length": 1379,
+      "sha256": "024837c0cc13c82ccb129b251dee509e140f587529b9f4c36a9370c6a4fb0f9a"
+    },
+    "engine-dezipper-compact-x64.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5758898,
+      "length": 391,
+      "sha256": "f6ecaf927f28898f20776d8cde4423ef082b5cc9a5a91312b14ff73ada090e45"
+    },
+    "engine-mem-reader-hop-x64.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5861842,
+      "length": 992,
+      "sha256": "518643728e6fa1152ffb9ea1cb10c4951f729949352744ee1aff701bdf751557"
+    },
+    "assembler-envelope-current.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 8048249,
+      "length": 6140,
+      "sha256": "1502f30f2979efdedb1012064b8fb9450a2cb6ee3d1ada0250217998d743be3b"
+    },
+    "engine-double-reciprocal.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5769202,
+      "length": 151,
+      "sha256": "12dd6f9dbb3a5926fcafc273edd6b469dc22ffa351e48da4e6d99222708ead40"
+    },
+    "engine-double-floor.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5820786,
+      "length": 304,
+      "sha256": "03bb4473d51e3e8a7ff35ff8afdf7166b5945a642dc9f3431bfa6679fe958330"
+    },
+    "assembler-double-switch.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5829730,
+      "length": 467,
+      "sha256": "59c03fa9caef117ea21454f7afc604dbb9c9cd2ac5d771a5081b21a1d9050af4"
+    },
+    "engine-mem-reader-channels.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5859474,
+      "length": 903,
+      "sha256": "0cb4dc6a8d785d83b56621a1339279ed5b5bd7f56a70e92fa5acbba695140868"
+    },
+    "engine-float-absolute.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5766418,
+      "length": 49,
+      "sha256": "bfd9e432387f61887f73fda8ea230ad240e85faaa847d5e92b98d761b3316f18"
+    },
+    "engine-sample-index-double-x86.asm": {
+      "source": "x86/FlowStone.exe",
+      "normalized_offset": 5147004,
+      "length": 144,
+      "sha256": "ecf01d06d6b2e44af47608d2e51e4cd071708940976997d929417952b010661f"
+    },
+    "stream-power.asm": {
+      "source": "Modules/Stream Power.hom",
+      "normalized_offset": 189,
+      "length": 1281,
+      "sha256": "48cb814c8f5bc82dbf24bd4e106ada224f4c23509d98afe3ddb7a9aa33b6ccc7"
+    },
+    "engine-sample-index-float-x86.asm": {
+      "source": "x86/FlowStone.exe",
+      "normalized_offset": 5146100,
+      "length": 119,
+      "sha256": "7f6202771d573f9e311590bd064393ef7222e2176f60f3aebdf405565748a49e"
+    },
+    "engine-double-absolute.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5769362,
+      "length": 151,
+      "sha256": "c8ee61f0dc613101dfa98cfe5cfae0082978c84e4f1b23f07ad1b47576190790"
+    },
+    "memarray-wave-array-kernel.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5857026,
+      "length": 982,
+      "sha256": "438ef530181be04f9f7729ef95619cb438287ba1c7090de03a485288a25f757e"
+    },
+    "engine-float-to-double-move.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5269997,
+      "length": 130,
+      "sha256": "7fb21805ee412120fd895300cd9a0c1ee5c16a857a03b6132af0de426fcdd6d0"
+    },
+    "engine-frame-mask-read-x86.asm": {
+      "source": "x86/FlowStone.exe",
+      "normalized_offset": 5138833,
+      "length": 77,
+      "sha256": "d247a6ee3bca24f851f8feb93ea4c5e3ce3db5723ed4de8c38ce625eb56f50b1"
+    },
+    "engine-buffer-table-x64.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 4991550,
+      "length": 594,
+      "sha256": "eff414f2f3ee10796f89c8bf2155bb52760d23d19e48a34ffb61ce44da02c26f"
+    },
+    "assembler-incoming-clock-ramp.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 8089542,
+      "length": 246,
+      "sha256": "1b240136e87f14a79ba8c5e7800c83e557070539389b9872450299b0d0657ba1"
+    },
+    "multi-sample-bounds.asm": {
+      "source": "Modules/Multi Sample Advanced.hom",
+      "normalized_offset": 110391,
+      "length": 620,
+      "sha256": "ffee584dc3d25ba1601cdc32fbc3832240c1a42ac4a0ac596532257de68c8136"
+    },
+    "assembler-mem-nibble-reader.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 8036026,
+      "length": 1283,
+      "sha256": "e8136d45de697a12fe88c56b58f89b8fe653d0576bc06b77c96c1e086110c790"
+    },
+    "engine-buffer-transfer-x86.asm": {
+      "source": "x86/FlowStone.exe",
+      "normalized_offset": 4957596,
+      "length": 574,
+      "sha256": "96a99c3b8507df429d99a281413acc9a2134585bac478380f782838f855fc42d"
+    },
+    "engine-frame-load-double.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5269533,
+      "length": 115,
+      "sha256": "a9d330a1c9b08a6633ffb4362eb450f399df1ede499e5133fb78f310b49c8b3a"
+    },
+    "assembler-double-accumulator.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 8094348,
+      "length": 656,
+      "sha256": "7fe0411c733997cd0226ed30ee6e5a8296c02b44a30a20466031ddc4dd76bdaf"
+    },
+    "engine-bound-double-pair-x86.asm": {
+      "source": "x86/FlowStone.exe",
+      "normalized_offset": 5159252,
+      "length": 230,
+      "sha256": "a9dba3f74dd7936a12555c80a8531a734761dd374cb3269a124106b5cf20975e"
+    },
+    "engine-mem-writer-mono.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5864322,
+      "length": 668,
+      "sha256": "fdd8dc0a38c0f5797ac1200567d2def6f98b8b44856e80c49b864b74108aa239"
+    },
+    "engine-bound-double-read-x86.asm": {
+      "source": "x86/FlowStone.exe",
+      "normalized_offset": 5080964,
+      "length": 109,
+      "sha256": "720f7f719358e2e4a656b7a2605e854d9adaffab0f5506220f3142c4bb2df466"
+    },
+    "assembler-double-greater.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5736930,
+      "length": 177,
+      "sha256": "1fe49f44d9438095d52c753f253b6510bc38a030e20f5633678ff904210e9a75"
+    },
+    "engine-double-to-float-add.asm": {
+      "source": "x64/FlowStone.exe",
+      "normalized_offset": 5270893,
+      "length": 110,
+      "sha256": "ee059826129b7c44dd02481f2c5038141a1d44ebb514e1e9fdcc50c18554f19c"
+    },
+    "memarray-wave-left.asm": {
+      "derived_from": "memarray-wave-array-kernel.asm"
+    },
+    "memarray-wave-right.asm": {
+      "derived_from": "memarray-wave-array-kernel.asm"
+    },
+    "memarray-wave-left-flowstone.asm": {
+      "derived_from": "memarray-wave-array-kernel.asm"
+    },
+    "memarray-wave-right-flowstone.asm": {
+      "derived_from": "memarray-wave-array-kernel.asm"
+    }
+  }
+}

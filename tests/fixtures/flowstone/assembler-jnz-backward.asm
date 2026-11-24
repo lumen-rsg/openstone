@@ -1,0 +1,15 @@
+streamin in;
+streamout out;
+int bits;
+mov eax,in[0];
+cmp eax,0;
+mov eax,8;
+mov edx,3;
+jnz 6;
+mov edx,1;
+add eax,1;
+sub edx,1;
+jnz -18;
+mov bits[0],eax;
+cvtdq2ps xmm0,bits;
+movaps out,xmm0;

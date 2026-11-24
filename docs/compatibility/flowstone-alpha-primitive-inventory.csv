@@ -1,0 +1,502 @@
+FlowStone label,Family,OpenStone catalog status,OpenStone entry,Build string resource ID,Component identifier,Notes
+Append Array,Arrays,OpenStone catalog match,Append Array,22577,AllArrayAppend,
+Array,Arrays,OpenStone catalog match,Array,20269,AllArray,
+Array Builder,Arrays,OpenStone catalog match,Array Builder,20915,AllArrayBuilder,
+Array Fixed Size,Arrays,OpenStone catalog match,Array Fixed Size,20407,AllArrayFixedSize,
+Array Get,Arrays,OpenStone catalog match,Array Get,22177,AllArrayGet,
+Array History,Arrays,OpenStone catalog match,Array History,21785,AllArrayHistory,
+Array Interpolated Get,Arrays,OpenStone catalog match,Array Interpolated Get,21871,AllArrayInterpolatedGet,
+Array Loop,Arrays,OpenStone catalog match,Array Loop,23051,AllArrayLoop,
+Array Queue,Arrays,OpenStone catalog match,Array Queue,24838,AllArrayQueue,
+Array Section,Arrays,OpenStone catalog match,Array Section,25197,AllArraySection,
+Array Splitter,Arrays,OpenStone catalog match,Array Splitter,20084,AllArraySplit,
+Array Stack,Arrays,OpenStone catalog match,Array Stack,25434,AllArrayStack,
+FFT,Arrays,OpenStone catalog match,FFT,21856,FloatArrayFFT,
+Float Array Draw,Arrays,OpenStone catalog match,Float Array Draw,21736,FloatArrayDraw,
+Float Array Resample,Arrays,OpenStone catalog match,Float Array Resample,25039,FloatArrayResample,
+Float Array To Point Array,Arrays,OpenStone catalog match,Float Array To Point Array,22141,PointArrayFromFloatArray,
+iFFT,Arrays,OpenStone catalog match,iFFT,22595,FloatArrayIFFT,
+Magnitude/Phase to Real/Img,Arrays,OpenStone catalog match,Magnitude/Phase to Real/Img,24974,FloatArrayFromMagPhase,
+Max Float Array,Arrays,OpenStone catalog match,Max Float Array,21805,AllArrayMax,
+Min Float Array,Arrays,OpenStone catalog match,Min Float Array,21797,AllArrayMin,
+Norm,Arrays,OpenStone catalog match,Norm,22423,FloatArrayNorm,
+Point Array To Float Array,Arrays,OpenStone catalog match,Point Array To Float Array,22149,PointArrayToFloatArray,
+Real/Img to Magnitude/Phase,Arrays,OpenStone catalog match,Real/Img to Magnitude/Phase,22993,FloatArrayToMagPhase,
+Rotate Array,Arrays,OpenStone catalog match,Rotate Array,25453,AllArrayRotate,
+ASIO In,Audio and streams,OpenStone catalog match,ASIO In,21248,StreamAsioIn,ASIO Mono input connectors are sized from the selected or first available ASIO device at placement. Uses PortAudio when ASIO is available.
+ASIO Out,Audio and streams,OpenStone catalog match,ASIO Out,21251,StreamAsioOut,ASIO Mono output connectors are sized from the selected or first available ASIO device at placement. Uses PortAudio when ASIO is available.
+Assembler,Audio and streams,OpenStone catalog match,Assembler,20883,StreamCode,"All mnemonic names in the FlowStone 3.0.8 user guide have supported forms. Coverage includes indexed and Mem-backed operands, local arrays, packed shift counts, double lane pairs, MemArray descriptor and table access with mono/stereo wave reads and writes, scalar registers and stack, forward and backward label branches, numeric JMP and JNZ for known instruction widths, nested, recursive, and branching recursive local calls to earlier or later labels with internal branches, multiple returns, and labeled or register tail jumps with runtime target selection and targets saved in named local memory or Mem-backed cells, including runtime-indexed target-table initialization, replacement, and register-mediated copies, chained copies, and swaps between indexed cells, direct and indexed memory-indirect calls and tail jumps, and x87 stack operations. Poly DSP stages now execute consecutive voices in four-lane packets; weighted cross-voice SHUFPS captures for four and eight held notes match every sample word on interpreter and LLVM ORC across buffer sizes 1, 7, and 64. Raw binary32/binary64 edge captures for 16 SSE arithmetic, min/max, square-root and integer-conversion instructions match both backends across buffer sizes; NaN policy is pinned to FlowStone x64 on Windows ARM. DSP isolates and restores the host floating-point environment, and raw float moves preserve signaling NaNs and subnormals. Portable 80-bit x87 stack arithmetic, stack copies/exchanges, rounded Float/Double and Int stores, scaling and complete remainder now run on both backends through SoftFloat; dfst, dfstp, fdivp and dfdivp are supported. CVTPD2DQ and CVTTPD2DQ convert two doubles to signed dwords and clear the upper integer lanes; SHUFPD selects raw double words. Register, named-memory and indirect forms pass both backends and portable headless tests; four unchanged double Round/Truncate/Pack/Unpack kernels now compile and render. XMM registers now preserve one raw 128-bit value across PS/PD/integer views, named memory layout changes, partial scalar writes and control-flow joins. Five unchanged double-comparison kernels and the double switch pass exact-bit tests on both backends and without LLVM. DSP Code and Assembler accept comma-separated connector declarations with independent array bounds and stage as a variable or connector name; unchanged interpolation weights and double accumulator sources compile and render on both backends. FlowStone-compatible CMPGTPS and CMPGTPD aliases use NLE predicate 6 with all-ones NaN masks and zero signed-zero equality masks; raw masks, register/named/indexed/indirect sources, both Double windows and numeric jump widths pass both backends and interpreter-only tests. COMISS compares the low raw Float word and sets zero/carry/parity plus cleared signed-less state; register and memory sources and 16 conditional branch spellings pass both backends across buffer sizes. CMP/ADD/SUB produce unsigned carry or borrow and even parity of the low result byte; INC/DEC update parity, zero and signed-branch state while preserving carry. DEC register, local-memory and Mem-indirect forms pass overflow, wraparound, all byte parities, both carry states, calls/joins/loops and numeric jump tests on both backends and without LLVM. Signed JGE/JLE aliases match SF/OF and ZF conditions after CMP/ADD/SUB/INC/DEC, including equality, signed overflow and COMISS flags; 16 literal boundaries and five-buffer matrix tests pass both backends and without LLVM. Dedicated interpreter and LLVM integer operations pass exhaustive byte parity, signed/unsigned overflow, alias and memory tests across five buffer sizes. Scalar AND/OR clear CF and update PF; nonzero SHL/SHR set last-bit carry and result parity. Producer validity crosses calls/joins/loops and rejects missing flags or opaque address arithmetic. The compile audit accepts 50 category/source entries with no regressions and no remaining unlisted mnemonic candidates. CVTSS2SI converts the low raw Float word to a signed 32-bit GPR with nearest-even rounding and exact invalid-result words, preserving sources, modeled flags and caller floating-point state; register/named/indexed/indirect forms, ties, limits, NaNs and raw Double views pass both backends and interpreter-only tests. MOVHLPS/MOVLHPS preserve raw halves, untouched destination bits, sources and flags, including self-aliasing and high XMM registers; Float/Double views, five-buffer exact-bit tests, local calls, numeric jump widths and invalid forms pass both backends and the interpreter-only build. Scalar TEST and XOR set zero/sign/even low-byte parity and clear carry/overflow; TEST preserves operands while XOR stores the 32-bit result. Eight operand forms, zero/self-alias cases, all 16 branch spellings, incoming overflow and both carry states, calls/joins/loops, known numeric skip widths and tag preservation/invalidation pass both backends and interpreter-only tests across five buffer sizes. Self-XOR initializes an unwritten numeric register to zero. XCHG swaps initialized 32-bit registers and writable memory in either order, preserving flags and original effective addresses when an index is also exchanged. Sixteen register pairings, twelve memory forms, self-aliases, raw payloads, guards, all branch spellings, opaque register references and saved target/data metadata swaps pass both backends and interpreter-only tests across five buffer sizes. IDIV divides signed EDX:EAX by a captured signed 32-bit register/memory operand, returning truncated quotient and dividend-signed remainder. Separate interpreter magnitude and guarded LLVM i64 paths pass sign, boundary, full-width dividend, alias, zero/overflow fault, no-partial-write, descriptor, loop and caller-state tests across five buffer sizes, plus an interpreter-only build. Faults stop the stage and record the first reason/frame until reset through Runtime::dspFault; undefined arithmetic flags require a new producer. MOV AL/BL/CL/DL loads, copies and immediates preserve the upper parent bits and EFLAGS. True single-byte reads, last-byte and empty bounds, all low-register copies, raw Float/Double/array layouts and the unchanged byte Mem reader with explicit caller initialization pass both backends and the interpreter-only build across five buffer sizes. MOV memory stores from AL/BL/CL/DL replace exactly one indexed byte, preserve neighboring bytes/source parents/flags, protect MemArray tables and invalidate overlapping callable target provenance. All four registers, scales 1/2/4/8, signed displacements, eight memory kinds, unaligned views, boundaries, source/index aliases, wave writes and caller-state tests pass both backends and the interpreter-only build across five buffer sizes. MOV AH/BH/CH/DH selects bits 15:8 for loads, stores, copies and byte immediates, preserving every other parent bit, neighboring memory and flags. All 64 low/high copy pairings including aliases of one parent, all eight byte sources/destinations, all byte values, raw layouts, indexed/unaligned/boundary stores, address/source aliases and known numeric skip widths pass both backends across five buffer sizes and the interpreter-only build. All byte aliases appear in language highlighting/completion. Byte ADD/SUB/CMP support all eight low/high aliases, byte immediates and register-inferred byte memory forms. Captured operands produce eight-bit wraparound, carry/borrow, parity, zero and SF-xor-OF signed branch state; ADD/SUB preserve other parent bits/neighbors, while CMP preserves data and callable provenance. Exhaustive 65536-pair tests per operation, all 64 alias pairs, seven immediates on all eight destinations, overflow/boundary/alias/memory/control-flow/caller-state tests and MOV regressions pass both backends at five buffer sizes and in the interpreter-only build. The compile audit retains all 44 accepted entries and no missing-name candidates. Byte INC/DEC support all eight low/high aliases with modulo-256 results, unchanged remaining parent bits and preserved carry value/validity. All 256 values with both CF states from four producers, all branch spellings, overflow/wrap literals, calls/joins/pairs/loops, numeric skips, missing-CF diagnostics and caller-state tests pass both backends across five buffer sizes and the interpreter-only build. The audit retains all 44 accepted entries with no missing-name candidates. Byte AND/OR/XOR/TEST support all eight low/high aliases, byte immediates and register-inferred memory widths. They clear carry/overflow and derive sign/zero/parity from the eight-bit result; writes preserve other parent/memory bits while TEST preserves operands and callable provenance. Exhaustive 65536-pair checks per operation, 64 alias pairings, seven immediates, five-buffer boundary/layout/alias/control-flow/caller-state/flag-recovery/target tests and an interpreter-only build pass. Byte self-XOR retains initialized numeric parents and rejects unknown or opaque parent bits. The audit retains all 44 accepted entries with no missing-name candidates. Remaining byte forms, explicit byte-memory sizing, explicit AF/OF/SF exposure and numeric 64-bit parents remain separate forms. SIMD exception/trap emulation remains open. Physical Windows x64 precision-control parity, exact x87 transcendental/status behavior and hardware reciprocal estimates remain open. Arbitrary native addresses remain unsupported. Byte SHL/SHR accept all eight low/high register aliases with immediate or CL counts, masked to five bits. Zero preserves flags and parent bits; nonzero shifts update byte results, ZF/PF, shifted-out carry and one-bit signed overflow. Undefined multi-bit OF uses zero and large-count CF follows iterative byte shifting. All byte/count pairs for both directions, all aliases, 19 count boundaries and immediate counts, six incoming flag states, 16 branch spellings, self/CL/CH aliases, calls/joins/loops, caller state, flag availability and numeric widths pass both backends and the interpreter-only portable build. Unsized byte-memory shifts and explicit flag exposure remain future forms. Byte XCHG supports all eight low/high aliases in register/register and register/memory swaps, in either order. Captured bytes, memory-first writes and partial parent merges preserve flags, neighbors and old effective addresses, including self/shared-parent and source/index aliases. All 64 alias pairs, exhaustive AH/BL and AH/AL pairs at buffer size 64, eight storage kinds, six flag patterns, 16 branch spellings, wave/table access, bounded memory, target provenance, control flow and numeric spans pass both backends across five buffer sizes and without LLVM. Native cross-thread bus locking and page-fault delivery remain outside the sequential DSP memory model. Byte IDIV accepts all eight low/high aliases and explicit BYTE [PTR] memory divisors. Signed AX division writes AL/AH only for quotients in -128..127, preserving upper EAX and EDX; aliased divisors/indices are captured first. Independent interpreter/LLVM width-aware paths guard zero/overflow and preserve the existing sticky fault/frame diagnostic without partial stores. EDX initialization is unnecessary; arithmetic flags become unavailable. Eighteen forms, signed boundaries/all divisor bytes, five buffer sizes, full AX sweeps with seven divisors, raw parent/source preservation, calls/loops/joins, memory bounds and numeric spans pass both backends and without LLVM. Unsized memory and existing byte-named symbols retain dword behavior; word/64-bit division and native trap delivery remain separate. Verified engine constants _DONE/_DMONE/_DABS/_DSIGN now bind read-only raw Double packets from the actual x86/x64 Alpha 5483 constructors, without injected declarations. Five unchanged Double floor/ceiling/reciprocal/sign/absolute kernels compile and render in both backends across five buffer sizes; exact raw views, stage/reset/call behavior, numeric spans, shadowing and write rejection pass including the portable interpreter build. Strict audit acceptance increases from 44 to 49 with all earlier passes retained and no missing names. Verified Float engine constants _PI/_E/_SQRT2/_ABS/_SIGN/_DENORM/_ZERO/_ONE/_MONE now bind exact raw four-lane Float packets independently verified in both Alpha 5483 builds. Four unchanged engine kernels render in explicit typed caller port context on interpreter and LLVM ORC across five buffer sizes and without LLVM; raw PS/PD/byte views and mixed Float/Double storage preserve bits. The strict audit retains all 49 passes and zero missing names; these fragments still omit caller ports. Assembler stage N; directives now select stages 0-3 without changing parenthesized block semantics. Two unchanged Float/Double Delay1 bodies render bit-exact scalar and packed delays and controlled feedback in both backends across six buffer sizes, plus portable interpreter checks. The self-contained Double kernel raises strict audit acceptance from 49 to 50, retaining every earlier pass and zero missing names. ESI/EDI/EBP and RSI/RDI/RBP reference aliases now share the established numeric, pointer and local-target model with independent state; the eight byte aliases keep their original parents. Three unchanged native bodies render with explicit caller contexts in both backends across five buffer sizes. Independent flag/memory oracles, register preservation, calls/stack/tail transfers and portable byte-parent regressions pass; the strict audit retains the exact 50-entry set with zero missing names. Remaining Double constants and pointer/register/frame context remain separate work."
+Audio Devices,Audio and streams,OpenStone catalog match,Audio Devices,26255,AudioDevices,Count and String Array of PortAudio devices on the desktop backend.
+Audio Inputs/Outputs,Audio and streams,OpenStone catalog match,Audio Inputs/Outputs,25687,AudioInOuts,String Array names of the active input and output channels.
+Audio Select,Audio and streams,OpenStone catalog match,Audio Select,26396,AudioSelect,Selects or deselects an enumerated audio device and reports its index.
+Bar Start Position,Audio and streams,OpenStone catalog match,Bar Start Position,20865,StreamBarStartPos,Reports the host bar start in quarter notes as a float Stream.
+Biquad Filter Coeff,Audio and streams,OpenStone catalog match,Biquad Filter Coeff,20000,StreamBiquad,Direct-form II filter with five sample-rate Stream coefficients.
+Biquad Frequency Response,Audio and streams,OpenStone catalog match,Biquad Frequency Response,20452,BiquadFreq,Green Float Array of power or dB on a linear or logarithmic Hz grid.
+Biquad Phase Response,Audio and streams,OpenStone catalog match,Biquad Phase Response,20481,BiquadPhase,Green Float Array of principal phase in radians on the same frequency grid.
+Ceil,Audio and streams,OpenStone catalog match,Ceiling,21202,StreamRound,
+Clear Audio,Audio and streams,OpenStone catalog match,Clear Audio,20825,ClearAudio,Trigger clears active voices and restarts stream state before the next audio callback.
+De-Zipper,Audio and streams,OpenStone catalog match,De-Zipper,21204,StreamDezip,"Smooths a Stream in 128-sample hops, with a 40 ms default and a Reset input."
+Delay,Audio and streams,OpenStone catalog match,Delay,21224,StreamDelay,Delays a Mono stream by 1 to 262144 samples. Live edits retain history.
+Delay by One Sample,Audio and streams,OpenStone catalog match,Delay by One Sample,21244,StreamDelaySample,"Delays a Stream by one sample, including in feedback loops."
+Delay Double by One Sample,Audio and streams,OpenStone catalog match,Delay Double by One Sample,21247,StreamDelaySampleDouble,Delays a StreamDouble by one sample and preserves double precision.
+Direct Sound In,Audio and streams,OpenStone catalog match,Direct Sound In,21255,StreamDirectSoundIn,Stereo Mono input through the Windows DirectSound backend in a compatible PortAudio build.
+Direct Sound In Devices,Audio and streams,OpenStone catalog match,Direct Sound In Devices,21519,DirectSoundInDevices,Count and names of Windows DirectSound input devices.
+Direct Sound In Select,Audio and streams,OpenStone catalog match,Direct Sound In Select,21527,DirectSoundInSelect,Selects or deselects an enumerated DirectSound input device independently of the general device selection.
+Direct Sound Out,Audio and streams,OpenStone catalog match,Direct Sound Out,21258,StreamDirectSoundOut,Stereo Mono output through the Windows DirectSound backend in a compatible PortAudio build.
+Double Bar Start Position,Audio and streams,OpenStone catalog match,Double Bar Start Position,20868,StreamBarStartPosDouble,Reports host bar start in quarter notes with double precision.
+Double Biquad Filter Coeff,Audio and streams,OpenStone catalog match,Double Biquad Filter Coeff,20015,StreamBiquadDouble,Direct-form II filter with five sample-rate Stream Double coefficients.
+Double Ceil,Audio and streams,OpenStone catalog match,Ceiling,21194,StreamRoundDouble,
+Double Delay,Audio and streams,OpenStone catalog match,Double Delay,21231,StreamDelayDouble,Delays a MonoDouble stream by 1 to 262144 samples. Live edits retain history.
+Double Filter Coefficients,Audio and streams,OpenStone catalog match,Double Filter Coefficients,20898,StreamBiquadCoefsDouble,Double-precision low-pass biquad coefficients from normalized cutoff and Q.
+Double Floor,Audio and streams,OpenStone catalog match,Floor,21192,StreamRoundDouble,
+Double Pitch to Freq,Audio and streams,OpenStone catalog match,Double Pitch to Freq,24693,StreamPitchToFreqDouble,Converts double-precision MIDI pitch to Nyquist-normalized frequency at the current sample rate.
+Double PPQ Position,Audio and streams,OpenStone catalog match,Double PPQ Position,24833,StreamPPQPosDouble,Reports host PPQ with double precision and advances while playing.
+Double Round,Audio and streams,OpenStone catalog match,Round,21188,StreamRoundDouble,
+Double Sample Position,Audio and streams,OpenStone catalog match,Double Sample Position,25142,StreamSamplePosDouble,Reports the host sample position with double precision and advances while playing.
+Double Sawtooth,Audio and streams,OpenStone catalog match,Double Sawtooth,25188,StreamOscSawDouble,Bandlimited Stream Double oscillator with phase offset and Stream Boolean hard sync.
+Double Select,Audio and streams,OpenStone catalog match,Double Select,21278,StreamSelectDouble,Routes one of two same-precision inputs per sample using a StreamBoolean selector.
+Double Sine,Audio and streams,OpenStone catalog match,Double Sine,25330,StreamOscSineDouble,Double-precision sine oscillator with phase offset and hard sync.
+Double Stream Absolute,Audio and streams,OpenStone catalog match,Abs,22125,StreamMathDouble,Uses a shared primitive for Stream and StreamDouble.
+Double Stream Add,Audio and streams,OpenStone catalog match,Add,21536,StreamMathDouble,Uses a shared primitive for Stream and StreamDouble.
+Double Stream Cosine,Audio and streams,OpenStone catalog match,Double Stream Cosine,21544,StreamCos1Double,Cosine of a Stream Double phase in turns.
+Double Stream Counter,Audio and streams,OpenStone catalog match,Double Stream Counter,24671,StreamCounterDouble,Double-precision sample counter with a Green Reset trigger.
+Double Stream Divide,Audio and streams,OpenStone catalog match,Divide,20305,StreamMathDouble,Uses a shared primitive for Stream and StreamDouble.
+Double Stream Equal To,Audio and streams,OpenStone catalog match,Double Stream Equal To,21612,StreamCompareDouble,Double-precision operands with a StreamBoolean result.
+Double Stream Greater,Audio and streams,OpenStone catalog match,Double Stream Greater,21616,StreamCompareDouble,Double-precision operands with a StreamBoolean result.
+Double Stream Greater or Equal To,Audio and streams,OpenStone catalog match,Double Stream Greater or Equal To,21620,StreamCompareDouble,Double-precision operands with a StreamBoolean result.
+Double Stream Inverse,Audio and streams,OpenStone catalog match,Stream Inverse,22127,StreamMathDouble,Uses a shared primitive for Stream and StreamDouble.
+Double Stream Less,Audio and streams,OpenStone catalog match,Double Stream Less,21614,StreamCompareDouble,Double-precision operands with a StreamBoolean result.
+Double Stream Less or Equal To,Audio and streams,OpenStone catalog match,Double Stream Less or Equal To,21618,StreamCompareDouble,Double-precision operands with a StreamBoolean result.
+Double Stream Max,Audio and streams,OpenStone catalog match,Stream Max,21573,StreamMathDouble,Uses a shared primitive for Stream and StreamDouble.
+Double Stream Min,Audio and streams,OpenStone catalog match,Stream Min,21575,StreamMathDouble,Uses a shared primitive for Stream and StreamDouble.
+Double Stream Multiply,Audio and streams,OpenStone catalog match,Multiply,21552,StreamMathDouble,Uses a shared primitive for Stream and StreamDouble.
+Double Stream Reciprocal,Audio and streams,OpenStone catalog match,Stream Reciprocal,21850,StreamMathDouble,Uses a shared primitive for Stream and StreamDouble.
+Double Stream Sign,Audio and streams,OpenStone catalog match,Stream Sign,22205,StreamMathDouble,Uses a shared primitive for Stream and StreamDouble.
+Double Stream Sine,Audio and streams,OpenStone catalog match,Double Stream Sine,21540,StreamSin1Double,Sine of a Stream Double phase in turns.
+Double Stream Square Root,Audio and streams,OpenStone catalog match,Stream Square Root,22129,StreamMathDouble,Uses a shared primitive for Stream and StreamDouble.
+Double Stream Subtract,Audio and streams,OpenStone catalog match,Subtract,21554,StreamMathDouble,Uses a shared primitive for Stream and StreamDouble.
+Double Stream Tangent,Audio and streams,OpenStone catalog match,Double Stream Tangent,21548,StreamTan1Double,Tangent of a Stream Double phase in turns.
+Double Tempo,Audio and streams,OpenStone catalog match,Double Tempo,25667,StreamTempoDouble,Reports host tempo in BPM with double precision.
+Double Time Signature,Audio and streams,OpenStone catalog match,Double Time Signature,25633,StreamTimeSignatureDouble,Reports the host time signature numerator and denominator as double Streams.
+Double to Stream,Audio and streams,OpenStone catalog match,Double to Stream,21239,StreamDoubleToStream,
+Double Triangle,Audio and streams,OpenStone catalog match,Double Triangle,24715,StreamOscTriangleDouble,Double-precision bandlimited triangle with phase offset and hard sync.
+Double Trunc,Audio and streams,OpenStone catalog match,Truncate,21190,StreamRoundDouble,
+DSP Code,Audio and streams,OpenStone catalog match,DSP Code,20884,StreamCode,
+Envelope Control,Audio and streams,OpenStone catalog match,Envelope Control,24687,StreamEnvelope,"Poly stage signals for note-on, hold and release. A Poly Boolean End signal releases the voice when Hold is active."
+Filter Coefficients,Audio and streams,OpenStone catalog match,Filter Coefficients,20886,StreamBiquadCoefs,Low-pass biquad coefficients from normalized cutoff and Q every four samples.
+Float Array Read,Audio and streams,OpenStone catalog match,Float Array Read,21674,StreamFloatArrayRead,Reads a Green Float Array at sample rate with nearest-even and wrapped indexing over 2048 slots. Live edits zero-fill unused slots.
+Float De-Zipper,Audio and streams,OpenStone catalog match,Float De-Zipper,26243,StreamFloatDezip,"Smooths a Green Float at a fixed rate per sample, with a 40 ms default and Reset."
+Floor,Audio and streams,OpenStone catalog match,Floor,21200,StreamRound,
+Glide,Audio and streams,OpenStone catalog match,Glide,22245,StreamGlide,Stream ramp with a length in samples and 128-sample target checks.
+Impulse,Audio and streams,OpenStone catalog match,Impulse,21555,StreamImpulse,Input-free Stream source emitting 1 on the first sample and 0 thereafter.
+Is Playing,Audio and streams,OpenStone catalog match,Is Playing,22620,StreamIsPlaying,Reports host playback state as a Boolean Stream.
+Load Wave File,Audio and streams,OpenStone catalog match,Load Wave File,26069,WaveLoad,Loads PCM and IEEE-float WAV with channel selection and metadata.
+Mono Out,Audio and streams,OpenStone catalog match,Mono Out,26229,StreamVstOutput,Routes Mono to a zero-based plug-in host output channel.
+Mono to Frame,Audio and streams,Related implementation,Mono to Frame,23516,StreamToRuby,Publishes the latest completed aligned frame as a Green Float Array in OpenStone. The FlowStone connector is a Ruby frame.
+Mono to Graph,Audio and streams,OpenStone catalog match,"Mono to Graph / Mono to Graph (2, 4, 8)",23513,StreamToFloatArray,"Available in one-, two-, four- and eight-channel capture variants."
+Mono To Poly,Audio and streams,OpenStone catalog match,Mono to Poly,25000,StreamMonoToPoly,
+Open ASIO Settings,Audio and streams,OpenStone catalog match,Open ASIO Settings,20604,ASIOPanel,Opens the running ASIO device control panel when the PortAudio build includes the extension.
+Pack,Audio and streams,OpenStone catalog match,Pack,25821,StreamPack,Combines four Mono streams into a Mono4 stream in port order.
+Pack Double,Audio and streams,OpenStone catalog match,Pack Double,25829,StreamPackDouble,Combines four MonoDouble streams into a Mono4Double stream.
+Pitch to Freq,Audio and streams,OpenStone catalog match,Pitch to Freq,24691,StreamPitchToFreq,Converts MIDI pitch to Nyquist-normalized frequency at the current sample rate.
+PPQ Position,Audio and streams,OpenStone catalog match,PPQ Position,24830,StreamPPQPos,Reports host PPQ as a float Stream and advances while playing.
+Ramp,Audio and streams,OpenStone catalog match,Ramp,21585,StreamRamp,Non-bandlimited 0–1 ramp with normalized frequency and rising-edge sync.
+Round,Audio and streams,OpenStone catalog match,Round,21196,StreamRound,
+Sample Position,Audio and streams,OpenStone catalog match,Sample Position,25139,StreamSamplePos,Reports host sample position as a float Stream and advances while playing.
+Sample Rate,Audio and streams,OpenStone catalog match,Sample Rate,25174,SampleRate,Reports the current sample rate as a Green Float and publishes on a rate change.
+Save Wave File,Audio and streams,OpenStone catalog match,Save Wave File,26084,WaveSave,Writes PCM or Float32 WAV with Saved and Error triggers.
+Sawtooth,Audio and streams,OpenStone catalog match,Sawtooth,25178,StreamOscSaw,"Bandlimited Stream oscillator with normalized frequency, phase offset, and rising-edge sync."
+Select,Audio and streams,OpenStone catalog match,Stream Select,21273,StreamSelect,Routes one of two same-precision inputs per sample using a StreamBoolean selector.
+Set Sample Rate,Audio and streams,OpenStone catalog match,Set Sample Rate,25290,SetSampleRate,Requests an exact device sample rate and sends Error if the backend rejects it.
+Signal Analyser,Audio and streams,OpenStone catalog match,Signal Analyser,25119,SignalAnalyser,
+Sine,Audio and streams,OpenStone catalog match,Sine,25320,StreamOscSine,"Sine oscillator with normalized frequency, phase offset, and rising-edge sync."
+Stream Absolute,Audio and streams,OpenStone catalog match,Abs,22119,StreamMath,Uses a shared primitive for Stream and StreamDouble.
+Stream Add,Audio and streams,OpenStone catalog match,Add,21534,StreamMath,Uses a shared primitive for Stream and StreamDouble.
+Stream Cosine,Audio and streams,OpenStone catalog match,Stream Cosine,21542,StreamCos1,Cosine of a Stream phase in turns.
+Stream Counter,Audio and streams,OpenStone catalog match,Stream Counter,24666,StreamCounter,Sample-rate Stream counter with a Green Reset trigger.
+Stream Divide,Audio and streams,OpenStone catalog match,Divide,21550,StreamMath,Uses a shared primitive for Stream and StreamDouble.
+Stream Equal To,Audio and streams,OpenStone catalog match,Stream Equal To,21610,StreamCompare,Single-precision operands with a StreamBoolean result.
+Stream Greater,Audio and streams,OpenStone catalog match,Stream Greater,21565,StreamCompare,Single-precision operands with a StreamBoolean result.
+Stream Greater or Equal To,Audio and streams,OpenStone catalog match,Stream Greater or Equal To,21567,StreamCompare,Single-precision operands with a StreamBoolean result.
+Stream Inverse,Audio and streams,OpenStone catalog match,Stream Inverse,22121,StreamMath,Uses a shared primitive for Stream and StreamDouble.
+Stream Less,Audio and streams,OpenStone catalog match,Stream Less,21569,StreamCompare,Single-precision operands with a StreamBoolean result.
+Stream Less or Equal To,Audio and streams,OpenStone catalog match,Stream Less or Equal To,21571,StreamCompare,Single-precision operands with a StreamBoolean result.
+Stream Max,Audio and streams,OpenStone catalog match,Stream Max,21577,StreamMath,Uses a shared primitive for Stream and StreamDouble.
+Stream Min,Audio and streams,OpenStone catalog match,Stream Min,21579,StreamMath,Uses a shared primitive for Stream and StreamDouble.
+Stream Multiply,Audio and streams,OpenStone catalog match,Multiply,21581,StreamMath,Uses a shared primitive for Stream and StreamDouble.
+Stream Reciprocal,Audio and streams,OpenStone catalog match,Stream Reciprocal,21583,StreamMath,Uses a shared primitive for Stream and StreamDouble.
+Stream Sign,Audio and streams,OpenStone catalog match,Stream Sign,22203,StreamMath,Uses a shared primitive for Stream and StreamDouble.
+Stream Sine,Audio and streams,OpenStone catalog match,Stream Sine,21538,StreamSin1,Sine of a Stream phase in turns.
+Stream Square Root,Audio and streams,OpenStone catalog match,Stream Square Root,22123,StreamMath,Uses a shared primitive for Stream and StreamDouble.
+Stream Subtract,Audio and streams,OpenStone catalog match,Subtract,21587,StreamMath,Uses a shared primitive for Stream and StreamDouble.
+Stream Tangent,Audio and streams,OpenStone catalog match,Stream Tangent,21546,StreamTan1,Tangent of a Stream phase in turns.
+Stream to Double,Audio and streams,OpenStone catalog match,Stream to Double,25172,StreamToDouble,
+Tempo,Audio and streams,OpenStone catalog match,Tempo,25662,StreamTempo,Reports host tempo in BPM as a float Stream.
+Time Signature,Audio and streams,OpenStone catalog match,Time Signature,25626,StreamTimeSignature,Reports the host time signature numerator and denominator as float Streams.
+Triangle,Audio and streams,OpenStone catalog match,Triangle,24705,StreamOscTriangle,Bandlimited triangle oscillator with phase offset and hard sync.
+Trunc,Audio and streams,OpenStone catalog match,Truncate,21198,StreamRound,
+Unpack,Audio and streams,OpenStone catalog match,Unpack,25837,StreamUnpack,Splits a Mono4 stream into its four Mono streams.
+Unpack Double,Audio and streams,OpenStone catalog match,Unpack Double,25845,StreamUnpackDouble,Splits a Mono4Double stream into its four MonoDouble streams.
+Wave Array Read,Audio and streams,OpenStone catalog match,Wave Array Read,24918,StreamWaveArrayRead,"Reads a selected wave and rounded, clamped sample position from MemArray."
+Wave File Array,Audio and streams,OpenStone catalog match,Wave File Array,26046,WaveFileArray,"Manages wave memory, per-entry metadata and optional schematic embedding."
+Wave Read,Audio and streams,OpenStone catalog match,Wave Read,24928,StreamWaveRead,"Reads stereo output by rounded, clamped sample position; duplicates a mono wave."
+Wave Read Hop,Audio and streams,OpenStone catalog match,Wave Read Hop,24990,StreamWaveReadHop,Holds each lookup for a power-of-two number of frames.
+Wave Table,Audio and streams,OpenStone catalog match,Wave Table,25671,CreateWaveTable,Builds band-limited wave memory with 256 harmonic bands and optional DC.
+Wave Table Read,Audio and streams,OpenStone catalog match,Wave Table Read,24962,StreamTableRead,"Reads a band-limited table with normalized frequency, phase offset and sync."
+Wave Write Mono,Audio and streams,OpenStone catalog match,Wave Write Mono,24936,StreamWaveWriteMono,Writes mono samples to shared Mem and passes the signal through.
+Wave Write Stereo,Audio and streams,OpenStone catalog match,Wave Write Stereo,24944,StreamWaveWriteStereo,Writes interleaved stereo samples to shared Mem and passes both signals through.
+AHSV to Color,Drawing and GUI,OpenStone catalog match,AHSV to Color,25939,ColorFromAHSV,
+Align Area,Drawing and GUI,OpenStone catalog match,Align Area,21449,AreaAlign,
+Arc,Drawing and GUI,OpenStone catalog match,Arc,22467,ViewDrawArc,
+Area Around Center Point,Drawing and GUI,OpenStone catalog match,Area Around Center Point,20419,AreaAroundPoint,
+Area Center-Point,Drawing and GUI,OpenStone catalog match,Area Center Point,20235,AreaCenterPoint,
+Area From Points,Drawing and GUI,OpenStone catalog match,Area From Points,20227,AreaFromPoints,
+Area To Float,Drawing and GUI,OpenStone catalog match,Area to Float,20050,AreaToFloat,
+Area To Points,Drawing and GUI,OpenStone catalog match,Area to Points,20219,AreaToPoints,
+Area Union,Drawing and GUI,OpenStone catalog match,Area Union,21171,AreaUnion,
+ARGB to Color,Drawing and GUI,OpenStone catalog match,ARGB to Color,22380,ColorFromARGB,
+Bitmap,Drawing and GUI,OpenStone catalog match,Bitmap,20530,BitmapFile,
+Bitmap Area,Drawing and GUI,OpenStone catalog match,Bitmap Bounds,25953,BitmapArea,
+Bitmap Area,Drawing and GUI,OpenStone catalog match,Bitmap Area,21418,DrawBitmapArea,
+Bitmap Array from Bitmap,Drawing and GUI,OpenStone catalog match,Bitmap Array from Bitmap,20204,BitmapArrayFromBitmap,
+Bitmap Array from File,Drawing and GUI,OpenStone catalog match,Bitmap Array from File,20189,BitmapArrayFromFile,
+Bitmap Array Get At,Drawing and GUI,OpenStone catalog match,Bitmap Get At,22967,BitmapArrayGetAt,
+Bitmap Create,Drawing and GUI,OpenStone catalog match,Create Bitmap,20529,BitmapCreate,
+Bitmap Draw,Drawing and GUI,OpenStone catalog match,Bitmap Draw,21416,DrawBitmap,
+Bitmap Draw Transform,Drawing and GUI,OpenStone catalog match,Bitmap Draw Transform,21420,DrawBitmapRC,
+Bitmap Resize,Drawing and GUI,OpenStone catalog match,Bitmap Resize,20548,BitmapResize,
+Bitmap Sample & Hold,Drawing and GUI,OpenStone catalog match,Bitmap Sample and Hold,25339,BitmapSampleAndHold,
+Bitmap Save,Drawing and GUI,OpenStone catalog match,Bitmap Save,20550,BitmapSave,
+Bitmap Size,Drawing and GUI,OpenStone catalog match,Bitmap Size,25350,BitmapSize,
+Clip,Drawing and GUI,OpenStone catalog match,Clip,21422,DrawClip,
+Color,Drawing and GUI,OpenStone catalog match,Color,20918,Color,
+Color Dialog,Drawing and GUI,OpenStone catalog match,Color Dialog,21172,ColorDialog,Opens a color picker with the requested starting color and output alpha.
+Color Matrix,Drawing and GUI,OpenStone catalog match,Color Matrix,20954,ColorMatrix,Parses a comma-separated 5×5 matrix on Parse and reports validity.
+Color Matrix Set,Drawing and GUI,OpenStone catalog match,Color Matrix Set,20956,ColorMatrixSet,
+Color To AHSV,Drawing and GUI,OpenStone catalog match,Color to AHSV,25928,ColorToAHSV,
+Color To ARGB,Drawing and GUI,OpenStone catalog match,Color to ARGB,21262,ColorToARGB,
+Drag Files,Drawing and GUI,OpenStone catalog match,Drag Files,24784,MouseDragFiles,
+Draw Array Loop,Drawing and GUI,OpenStone catalog match,View Array Loop,23070,ViewArrayLoop,
+Draw Dots,Drawing and GUI,OpenStone catalog match,Dots,23906,ViewDrawDots,
+Draw Graph Dots,Drawing and GUI,OpenStone catalog match,GraphDots,22336,ViewDrawGraphDots,
+Draw Line Graph,Drawing and GUI,OpenStone catalog match,LineGraph,22318,ViewDrawLineGraph,
+Draw Loop,Drawing and GUI,OpenStone catalog match,View Loop,22924,ViewLoop,
+Draw Point Lines,Drawing and GUI,OpenStone catalog match,Draw Point Lines,23887,ViewDrawPointLines,
+Draw Polygon,Drawing and GUI,OpenStone catalog match,Draw Polygon,25462,ViewDrawPolygon,
+Draw to Bitmap,Drawing and GUI,OpenStone catalog match,Draw to Bitmap,20556,BitmapDrawToBitmap,
+Drop Files,Drawing and GUI,OpenStone catalog match,Drop Files,23817,MouseDropFiles,
+Drop List Control,Drawing and GUI,OpenStone catalog match,DropList,22397,GuiDropList,
+Edit Control,Drawing and GUI,OpenStone catalog match,Edit Control,22399,GuiEdit,
+Ellipse,Drawing and GUI,OpenStone catalog match,Ellipse,21423,ViewDrawEllipse,
+Float to Area,Drawing and GUI,OpenStone catalog match,Float to Area,21662,AreaFromFloat,
+Font,Drawing and GUI,OpenStone catalog match,Font,22083,Font,
+Font Attributes,Drawing and GUI,OpenStone catalog match,FontAttr,22072,FontAttributes,
+Font Embed,Drawing and GUI,OpenStone catalog match,Font Embed,22188,FontEmbed,Embeds local font data in the schematic and registers it with the application on reopen.
+GUI Area,Drawing and GUI,OpenStone catalog match,GUI Area,25996,GuiArea,
+GUI Area,Drawing and GUI,OpenStone catalog match,Set GUI Area,26035,GuiSetArea,
+Hatch Brush,Drawing and GUI,OpenStone catalog match,Hatch Brush,24766,BrushHatch,
+Line,Drawing and GUI,OpenStone catalog match,Line,22895,ViewDrawLine,
+Linear Gradient Brush,Drawing and GUI,OpenStone catalog match,Linear Gradient Brush,24732,BrushLinearGradient,
+Mouse Capture,Drawing and GUI,OpenStone catalog match,Mouse Capture,21622,MouseCapture,Start and Stop capture on a connected Mouse Area. OpenStone delivers captured events across the panel.
+Mouse Drag,Drawing and GUI,OpenStone catalog match,Mouse Drag,23547,MouseDrag,
+Mouse Drag Accumulate,Drawing and GUI,OpenStone catalog match,Mouse Drag Accumulate,23559,MouseDragAccu,
+Mouse Info,Drawing and GUI,OpenStone catalog match,Mouse Info,21476,MouseInfo,
+Mouse L-Button Double-Click,Drawing and GUI,OpenStone catalog match,Mouse LDbl,24869,MouseButton,
+Mouse L-Button Down,Drawing and GUI,OpenStone catalog match,Mouse LDown,24857,MouseButton,
+Mouse L-Button Up,Drawing and GUI,OpenStone catalog match,Mouse LUp,24863,MouseButton,
+Mouse Move,Drawing and GUI,OpenStone catalog match,Mouse Move,23588,ViewMouseMove,
+Mouse R-Button Double-Click,Drawing and GUI,OpenStone catalog match,Mouse RDbl,24887,MouseButton,
+Mouse R-Button Down,Drawing and GUI,OpenStone catalog match,Mouse RDown,24875,MouseButton,
+Mouse R-Button Up,Drawing and GUI,OpenStone catalog match,Mouse RUp,24881,MouseButton,
+Mouse Wheel,Drawing and GUI,OpenStone catalog match,Mouse Wheel,26237,MouseWheel,
+Pen,Drawing and GUI,OpenStone catalog match,Pen,23941,Pen,
+Pen Attributes,Drawing and GUI,OpenStone catalog match,Pen Attributes,24694,PenAttributes,"Exposes the color, width and style of the input Paint Tool pen."
+Pie,Drawing and GUI,OpenStone catalog match,Pie,20616,ViewDrawPie,
+Polygonal Mouse Area,Drawing and GUI,OpenStone catalog match,Polygonal Mouse Area,21443,MousePolygonArea,
+Popup List Control,Drawing and GUI,OpenStone catalog match,Popup List,22401,GuiPopupList,
+Radial Gradient Brush,Drawing and GUI,OpenStone catalog match,Radial Gradient Brush,24746,BrushRadialGradient,
+Rectangle,Drawing and GUI,OpenStone catalog match,Rect,25004,ViewDrawRect,
+Rectangular Mouse Area,Drawing and GUI,OpenStone catalog match,Rectangular Mouse Area,21437,MouseRectArea,
+Redraw,Drawing and GUI,OpenStone catalog match,Redraw,21484,DrawInvalidate,
+Redraw Area,Drawing and GUI,OpenStone catalog match,Redraw Area,21486,DrawInvalidateArea,
+Rotate,Drawing and GUI,OpenStone catalog match,View Rotate,21488,DrawRotate,
+Round Rectangle,Drawing and GUI,OpenStone catalog match,Round Rectangle,25071,ViewDrawRoundRect,Uses the same Paint Tool and grid-unit corner radius as Rect.
+Solid Brush,Drawing and GUI,OpenStone catalog match,Solid,24726,BrushSolid,
+Text Draw,Drawing and GUI,OpenStone catalog match,Text,21490,DrawText,
+Texture Brush,Drawing and GUI,OpenStone catalog match,Texture Brush,24776,BrushTexture,
+Ticker 100,Drawing and GUI,OpenStone catalog match,Tick,25732,DrawRedraw,
+View Area,Drawing and GUI,OpenStone catalog match,View Area,25950,ViewArea,
+View Cache,Drawing and GUI,OpenStone catalog match,View Cache,21866,ViewCache,
+View Gaussian Blur,Drawing and GUI,OpenStone catalog match,View Blur,23016,ViewGaussianBlur,
+View Scale,Drawing and GUI,OpenStone catalog match,View Scale,21705,ViewScale,
+View Scale,Drawing and GUI,Review variant,View Scale,21430,ViewScaleSupersed,Compatibility variant shares a label with View Scale.
+View Section,Drawing and GUI,OpenStone catalog match,View Section,25794,ViewSection,
+View Shadow,Drawing and GUI,OpenStone catalog match,View Shadow,23025,ViewShadow,
+View Size,Drawing and GUI,OpenStone catalog match,View Size,25375,ViewSize,
+View Window,Drawing and GUI,OpenStone catalog match,Window,20566,ViewWindow,
+Abs,General processing,OpenStone catalog match,Abs,20146,AllAbs,
+Add,General processing,OpenStone catalog match,Add,20049,AllAdd,
+Atan2,General processing,OpenStone catalog match,Atan2,20586,AllAtan2,Green Float inputs in Y then X order. Returns radians.
+Boolean,General processing,OpenStone catalog match,Boolean,20108,AllEdit,
+Cos,General processing,OpenStone catalog match,Cos,21815,AllCos,Green Float input in radians.
+Cos Inverse,General processing,OpenStone catalog match,Cos Inverse,21821,AllAcos,Green Float output in radians.
+Cosh,General processing,OpenStone catalog match,Cosh,21827,AllCosh,Green Float hyperbolic cosine.
+Divide,General processing,OpenStone catalog match,Divide,20101,AllDivide,
+Equals,General processing,OpenStone catalog match,Equal (Trigger),20299,AllCompareTrigger,Trigger-output variant shares its label with a Boolean comparator.
+Evaluator,General processing,OpenStone catalog match,Evaluator,23833,MathEvaluator,Evaluates a Green formula with six named Float inputs.
+Float,General processing,OpenStone catalog match,Float,20106,AllEdit,
+Float Slide,General processing,OpenStone catalog match,Float Slide,25382,FloatSlide,Advances toward the target by Step at the Rate in milliseconds. Set jumps immediately.
+Frequency to Hz,General processing,OpenStone catalog match,Frequency to Hz,21837,AllFreqToHz,Converts normalized frequency to Hz at the current sample rate.
+Frequency to Pitch,General processing,OpenStone catalog match,Frequency to Pitch,21831,AllFreqToPitch,Uses the Alpha normalized-frequency pitch formula.
+From Decibel,General processing,OpenStone catalog match,From Decibel,22480,AllFromDecibel,Converts dB to linear amplitude. Supports Float and Float Array.
+Greater Than,General processing,OpenStone catalog match,Greater Than (Trigger),20298,AllCompareTrigger,Trigger-output variant shares its label with a Boolean comparator.
+Greater Than Or Equal,General processing,OpenStone catalog match,Greater Than or Equal (Trigger),20296,AllCompareTrigger,Trigger-output variant shares its label with a Boolean comparator.
+Hypotenuse,General processing,OpenStone catalog match,Hypotenuse,23431,AllHypot,Template supports Float and Float Array with scalar broadcast.
+Hz to Frequency,General processing,OpenStone catalog match,Hz to Frequency,21839,AllHzToFreq,Converts Hz to normalized frequency at the current sample rate.
+Hz to Pitch,General processing,OpenStone catalog match,Hz to Pitch,21835,AllHzToPitch,Maps 440 Hz to MIDI pitch 69.
+Int,General processing,OpenStone catalog match,Int,20107,AllEdit,
+Int Not,General processing,OpenStone catalog match,Int Not,22586,IntNot,
+Int to Note Name,General processing,OpenStone catalog match,Int to Note Name,23970,AllToNoteName,Converts a MIDI note or Int Array to note names.
+Inverse,General processing,OpenStone catalog match,Inverse,21751,AllInverse,Negates Green numbers and numeric Streams.
+Last Switch,General processing,OpenStone catalog match,Last Switch,20145,AllLSwitch,
+Length,General processing,OpenStone catalog match,Length,21781,AllLength,
+Less Than,General processing,OpenStone catalog match,Less Than (Trigger),20297,AllCompareTrigger,Trigger-output variant shares its label with a Boolean comparator.
+Less Than Or Equal,General processing,OpenStone catalog match,Less Than or Equal (Trigger),20295,AllCompareTrigger,Trigger-output variant shares its label with a Boolean comparator.
+Ln,General processing,OpenStone catalog match,Ln,22175,AllLn,
+Log10,General processing,OpenStone catalog match,Log10,22130,AllLog10,
+Log2,General processing,OpenStone catalog match,Log2,22173,AllLog2,
+Max,General processing,OpenStone catalog match,Max,20156,AllMax,
+Min,General processing,OpenStone catalog match,Min,20158,AllMin,
+Module Input,General processing,OpenStone catalog match,Module Input,20111,AllIn,
+Module Input,General processing,OpenStone catalog match,Module Input (Property),20111,AllInProp,Reads the same-name Module Output in the owning module.
+Module Output,General processing,OpenStone catalog match,Module Output,20166,AllOut,
+Module Output,General processing,OpenStone catalog match,Module Output (Property),20166,AllOutProp,Supplies the same-name Module Input when its exterior value input is unwired.
+Modulo,General processing,OpenStone catalog match,Modulus,20160,AllModulo,
+Multiply,General processing,OpenStone catalog match,Multiply,20162,AllMultiply,
+Note name to Int,General processing,OpenStone catalog match,Note name to Int,23885,AllFromNoteName,Converts a note name or String Array to MIDI notes.
+Pitch to Frequency,General processing,OpenStone catalog match,Pitch to Frequency,21851,AllPitchToFreq,Uses the Alpha normalized-frequency pitch formula.
+Pitch to Hz,General processing,OpenStone catalog match,Pitch to Hz,21833,AllPitchToHz,Maps MIDI pitch 69 to 440 Hz.
+Power,General processing,OpenStone catalog match,Power,21853,AllPow,
+Random Number,General processing,OpenStone catalog match,Random Number,24910,IntRand,Get emits an Int. A nonzero seed gives a repeatable sequence.
+Reciprocal,General processing,OpenStone catalog match,Reciprocal,22133,AllReciprocal,Template supports Float and Float Array. At zero the primitive returns FLT_MAX. The OpenStone scalar Float link limit converts it to +inf.
+Select,General processing,OpenStone catalog match,Select,20168,AllSelect,
+Shift Left,General processing,OpenStone catalog match,Shift Left,22591,AllShiftLeft,
+Shift Right,General processing,OpenStone catalog match,Shift Right,22593,AllShiftRight,
+Sign,General processing,OpenStone catalog match,Sign,22243,AllSign,Template supports Float and Int plus their arrays. Returns -1 for negative values and +1 otherwise.
+Sin,General processing,OpenStone catalog match,Sin,21813,AllSin,Green Float input in radians.
+Sin Inverse,General processing,OpenStone catalog match,Sin Inverse,21819,AllAsin,Green Float output in radians.
+Sinh,General processing,OpenStone catalog match,Sinh,21825,AllSinh,Green Float hyperbolic sine.
+Sort Array,General processing,OpenStone catalog match,Sort Array,20150,AllSort,
+Stream to Green,General processing,OpenStone catalog match,Stream to Green,22964,AllStreamToGreen,Get samples a Mono or MonoBoolean signal to Green Float or Boolean.
+String,General processing,OpenStone catalog match,String,20109,AllEdit,
+Subtract,General processing,OpenStone catalog match,Subtract,20170,AllSubtract,
+Sum,General processing,OpenStone catalog match,Sum,20148,AllSum,
+Tan,General processing,OpenStone catalog match,Tan,21817,AllTan,Green Float input in radians.
+Tan Inverse,General processing,OpenStone catalog match,Tan Inverse,21823,AllAtan,Green Float output in radians.
+Tanh,General processing,OpenStone catalog match,Tanh,21829,AllTanh,Green Float hyperbolic tangent.
+Teaching Goal,General processing,OpenStone catalog match,Teaching Goal,25684,AllTeachingGoal,Records completion for Goal Progress.
+To Decibel,General processing,OpenStone catalog match,To Decibel,22478,AllToDecibel,Converts linear amplitude to dB. Supports Float and Float Array.
+Trigger Blocker,General processing,OpenStone catalog match,Trigger Blocker,20172,AllTriggerBlocker,
+Trigger Switch,General processing,OpenStone catalog match,Trigger Switch,20174,AllTriggerSwitch,
+And,Logic and comparison,OpenStone catalog match,And,22564,AllAnd,
+Equals,Logic and comparison,OpenStone catalog match,Equal,20097,AllCompare,
+Greater Than,Logic and comparison,OpenStone catalog match,Greater Than,20096,AllCompare,
+Greater Than Or Equal,Logic and comparison,OpenStone catalog match,Greater Than or Equal,20094,AllCompare,
+If Then Else,Logic and comparison,OpenStone catalog match,If Then Else,22542,IfThenElse,
+Int XOr,Logic and comparison,OpenStone catalog match,XOr,22612,AllXor,
+Less Than,Logic and comparison,OpenStone catalog match,Less Than,20095,AllCompare,
+Less Than Or Equal,Logic and comparison,OpenStone catalog match,Less Than or Equal,20093,AllCompare,
+Not,Logic and comparison,OpenStone catalog match,Not,20595,BoolNot,
+Or,Logic and comparison,OpenStone catalog match,Or,22587,AllOr,
+Max. Poly to Mono,"MIDI, notes and voices",OpenStone catalog match,Max. Poly to Mono,26368,StreamPolyToMonoMax,Mixes the highest value among active voices.
+MIDI Aftertouch,"MIDI, notes and voices",OpenStone catalog match,MIDI Aftertouch,25120,MidiAftertouch,Extracts MIDI 1.0 channel pressure.
+MIDI Aftertouch,"MIDI, notes and voices",OpenStone catalog match,MIDI Aftertouch (Stream),25122,StreamMidiAftertouch,Maps channel pressure to 0–1 on a Mono output.
+Midi Buffer,"MIDI, notes and voices",OpenStone catalog match,Midi Buffer,20605,MidiBuffer,Emits queued events in arrival order on Flush.
+Midi Channel Filter,"MIDI, notes and voices",OpenStone catalog match,Midi Channel Filter,21737,MidiChannelFilter,Routes matching and remaining messages by channel.
+MIDI Control Change,"MIDI, notes and voices",OpenStone catalog match,MIDI Control Change,23372,MidiCC,Trigger-driven variant. Extracts the configured controller.
+MIDI Control Change,"MIDI, notes and voices",OpenStone catalog match,MIDI Control Change (Stream),23380,StreamMidiCC,Holds the selected controller per MIDI channel on a Poly output with configurable range and default.
+Midi Event,"MIDI, notes and voices",OpenStone catalog match,Midi Event,23575,MidiEvent,"Sends a message from status, 1-based channel and data bytes."
+MIDI In,"MIDI, notes and voices",OpenStone catalog match,MIDI In,26353,MidiInputSelector,Selects one or more native MIDI input ports.
+MIDI In Devices,"MIDI, notes and voices",OpenStone catalog match,MIDI In Devices,22868,MidiInDevices,"Lists input port count, names and availability."
+MIDI In Select,"MIDI, notes and voices",OpenStone catalog match,MIDI In Select,23438,MidiInSelect,Selects an input port from the enumerated index.
+Midi Note,"MIDI, notes and voices",OpenStone catalog match,Midi Note,23484,MidiNote,Tracks held keys and reports their count and latest pitch.
+Midi Note Filter,"MIDI, notes and voices",OpenStone catalog match,Midi Note Filter,23668,MidiNoteFilter,Routes note events by key number.
+MIDI Out,"MIDI, notes and voices",OpenStone catalog match,MIDI Out,26356,MidiOutputSelector,Routes MIDI to one or more native output ports.
+MIDI Out Devices,"MIDI, notes and voices",OpenStone catalog match,MIDI Out Devices,22877,MidiOutDevices,"Lists output port count, names and availability."
+MIDI Out Select,"MIDI, notes and voices",OpenStone catalog match,MIDI Out Select,23444,MidiOutSelect,Selects an output port from the enumerated index.
+MIDI Pitch Bend,"MIDI, notes and voices",OpenStone catalog match,MIDI Pitch Bend,23427,MidiPitchBend,Trigger-driven variant. Reads an unsigned 14-bit bend value.
+MIDI Pitch Bend,"MIDI, notes and voices",OpenStone catalog match,MIDI Pitch Bend (Stream),23429,StreamMidiPitchBend,Maps MIDI pitch bend to −1 through +1 with center at 0.
+MIDI Splitter,"MIDI, notes and voices",OpenStone catalog match,MIDI Splitter,25401,MidiSplit,Updates the message fields before firing Changed.
+Midi Status Filter,"MIDI, notes and voices",OpenStone catalog match,Midi Status Filter,23659,MidiStatusFilter,Routes channel messages by status high nibble.
+Midi to Notes,"MIDI, notes and voices",OpenStone catalog match,Midi to Notes,22208,MidiToNotes,Converts note events and handles per-channel sustain.
+Min. Poly to Mono,"MIDI, notes and voices",OpenStone catalog match,Min. Poly to Mono,26366,StreamPolyToMonoMin,Mixes the lowest value among active voices.
+Note Event,"MIDI, notes and voices",OpenStone catalog match,Note Event,23816,MidiNoteEvent,Schedules a Note Off after the requested duration.
+Notes Channel-Filter,"MIDI, notes and voices",OpenStone catalog match,Notes Channel-Filter,21325,NotesFilterByChannel,Matches zero-based MIDI channels and preserves Note Off routes.
+Notes Pitch-Filter,"MIDI, notes and voices",OpenStone catalog match,Notes Pitch-Filter,21283,NotesFilterByPitch,Layers notes by MIDI key with tagging and optional duplication.
+Notes to Voices,"MIDI, notes and voices",OpenStone catalog match,Notes to Voices,22219,VoicesAddNotes,Assigns note instances and releases their matching voices.
+Notes Velocity-Filter,"MIDI, notes and voices",OpenStone catalog match,Notes Velocity-Filter,21304,NotesFilterByVelocity,Layers notes by normalized attack velocity.
+Poly to Mono,"MIDI, notes and voices",OpenStone catalog match,Poly to Mono,26364,StreamPolyToMono,
+Poly to Mono Hop,"MIDI, notes and voices",OpenStone catalog match,Poly to Mono Hop,26370,StreamPolyToMonoHop,Sums voices at power-of-two sample intervals and holds the result.
+Poly to Mono Selective,"MIDI, notes and voices",OpenStone catalog match,Poly to Mono Selective,26372,StreamPolyToMonoSelective,Mixes a selected group of four voice slots.
+Stream Poly Channel-Id,"MIDI, notes and voices",OpenStone catalog match,Stream Poly Channel-Id,21460,StreamPolyChannelId,Reads the MIDI channel for each voice.
+Stream Poly Note-Id,"MIDI, notes and voices",OpenStone catalog match,Stream Poly Note-Id,21466,StreamPolyNoteId,Reads the note instance ID for each voice.
+Stream Poly Tag,"MIDI, notes and voices",OpenStone catalog match,Stream Poly Tag,22196,StreamPolyTag,Reads the requested tag for each voice.
+Stream Poly Voice-Id,"MIDI, notes and voices",OpenStone catalog match,Stream Poly Voice-Id,21463,StreamPolyVoiceId,Reads the zero-based slot for each voice.
+String to Sysex,"MIDI, notes and voices",OpenStone catalog match,String to Sysex,25582,MidiStringToSysex,Encodes hex as a framed System Exclusive message.
+Sysex to String,"MIDI, notes and voices",OpenStone catalog match,Sysex to String,25614,MidiSysexToString,Decodes framed System Exclusive bytes as uppercase hex.
+Voices,"MIDI, notes and voices",OpenStone catalog match,Voices,22228,Voices,Controls capacity and stolen-note behavior for one voice bank.
+Voices to Poly,"MIDI, notes and voices",OpenStone catalog match,Voices to Poly,25851,VoicesToPoly,"Supplies per-voice pitch, frequency, velocity, gate and trigger count."
+VST-M In,"MIDI, notes and voices",OpenStone catalog match,VST-M In,23434,MidiVstInput,Receives events through the plug-in host interface.
+VST-M Out,"MIDI, notes and voices",OpenStone catalog match,VST-M Out,23436,MidiVstOutput,Sends events through the plug-in host interface.
+Float Array to Float Mem,Memory,OpenStone catalog match,Float Array to Float Mem,20112,FloatArrayToFloatMem,Encodes binary32 samples in Mem.
+Int Array to Float Mem,Memory,OpenStone catalog match,Int Array to Float Mem,20118,IntArrayToFloatMem,Converts integers to binary32 samples.
+Int Array to Int Mem,Memory,OpenStone catalog match,Int Array to Int Mem,20124,IntArrayToIntMem,Preserves signed 32-bit integer words.
+Mem Create,Memory,OpenStone catalog match,Mem Create,23305,MemCreate,Allocates a zeroed buffer with mono or stereo metadata.
+Mem Get At,Memory,OpenStone catalog match,Mem Get At,23005,MemArrayGetAt,Samples an indexed buffer on Get and fires Done.
+Mem Info,Memory,OpenStone catalog match,Mem Info,20130,MemInfo,Reports the buffer address halves and its byte and channel counts.
+Mem to Float Array,Memory,OpenStone catalog match,Mem to Float Array,23316,MemToFloatArray,Reads the requested float range on Get.
+Mem to Float Array Min/Max,Memory,OpenStone catalog match,Mem to Float Array Min/Max,23453,MemMinMax,Returns per-channel extrema for each group of frames.
+Mem to MemArray,Memory,OpenStone catalog match,Mem to MemArray,25531,MemToMemArray,Splits the source into equal sample ranges.
+Mem to MemArray,Memory,OpenStone catalog match,Mem to Mipmap,25533,MemToMipmap,Generates band-limited wavetable levels. Alpha sample parity is unverified.
+Memory Copy,Memory,OpenStone catalog match,Memory Copy,23338,MemCopy,Copies bytes into an existing destination buffer.
+Memory Section,Memory,OpenStone catalog match,Memory Section,23327,MemSection,Copies the requested byte range on Get.
+ReadB,Memory,OpenStone catalog match,ReadB,25537,MemReadByte,Reads an unsigned byte at a byte offset.
+Wave Array Set,Memory,OpenStone catalog match,Wave Array Set,25529,MemArraySetAt,Resizes and edits an indexed array of mono or stereo waves.
+Write Byte,Memory,OpenStone catalog match,Write Byte,25548,MemWriteByte,Writes a byte at a checked offset.
+Audio Stream In,Other,OpenStone catalog match,Audio Stream In,26400,VlcAudioStreamIn,Qt Multimedia decodes local files and URLs to stereo Mono outputs. State and position are Green outputs.
+Background Color,Other,OpenStone catalog match,Background Color,21639,BackgroundColor,Sets the focused module window background from a Color input.
+Bus Create,Other,OpenStone catalog match,Bus Create,21845,BusCreate,
+Bus Extract,Other,OpenStone catalog match,Bus Extract,21841,BusExtract,
+COM Port,Other,OpenStone catalog match,COM Port,20960,ComPort,"Uses a separate serial backend for line settings, text and hex transfer, receive framing, logging and send-buffer controls."
+COM Ports,Other,OpenStone catalog match,COM Ports,21111,ComPortList,Lists available port numbers from the serial backend and republishes the list on Refresh.
+Counter,Other,OpenStone catalog match,Counter,21132,Counter,Separate Inc and Reset trigger inputs with an Int count.
+Exe Quit,Other,OpenStone catalog match,Exe Quit,24900,QuitExe,Requests standalone host shutdown. In the editor it exits a focused presentation.
+File Dialog,Other,OpenStone catalog match,File Dialog,21711,FileDialog,"Opens a native file picker for Save or Open with FlowStone filters, an initial folder, a default name and suffix, and separate OK and Cancel triggers."
+Find Files,Other,OpenStone catalog match,Find Files,21780,FindFiles,"Returns sorted basenames relative to the supplied folder, using filename wildcards. Emits Done after updating the list and count."
+Float To Point,Other,OpenStone catalog match,Point,22157,PointFromFloat,
+Focus Mode,Other,OpenStone catalog match,Focus Mode,22105,FocusMode,Exit returns from the focused module window to the schematic.
+Folder Dialog,Other,OpenStone catalog match,Folder Dialog,20036,FolderDialog,Opens a native folder picker from the requested starting folder. Sends the selected path before OK and pulses Cancel on dismissal.
+Full Screen,Other,OpenStone catalog match,Full Screen,22134,FullScreen,Toggles the focused window and reports native full-screen state as a Boolean.
+Generate GUID,Other,OpenStone catalog match,Generate GUID,20580,GenerateGuid,Generates a new brace-delimited version 4 GUID per trigger.
+Get Pixel,Other,OpenStone catalog match,Get Pixel,22576,GetPixel,
+Goal Progress,Other,OpenStone catalog match,Goal Progress,22371,GoalProgress,Reports and resets Teaching Goals across the schematic.
+Grid to Pixel,Other,OpenStone catalog match,Grid to Pixel,22425,GridToPixel,Includes Grid to Pixel (Area). Uses 8 logical pixels per grid unit.
+Hard Disk Serial,Other,OpenStone catalog match,Hard Disk Serial,22606,HDSerial,Reads a host-reported disk serial on Get. Returns an empty String when the OS supplies no serial.
+HTTP File Request,Other,OpenStone catalog match,HTTP File Request,22516,HttpFileRequest,Streams to a destination and honors Override before publishing Ok/Error.
+HTTP Image Request,Other,OpenStone catalog match,HTTP Image Request,22499,HttpBitmapRequest,Decodes the response as a Bitmap and reports Ok/Error.
+HTTP Request,Other,OpenStone catalog match,HTTP Request,22482,HttpStringRequest,Asynchronous HTTP/HTTPS with a String response and Ok/Error outputs.
+Index Selector,Other,OpenStone catalog match,Index Selector,22582,IndexSelector,Selects by name or the on-node menu. Outputs the zero-based index and selected text.
+Int Transition,Other,OpenStone catalog match,Int Transition,22616,IntTransition,Fires on a consecutive change from the configured From value to To.
+Is Key Pressed,Other,OpenStone catalog match,Is Key Pressed,22614,IsKeyPressed,Reads the current in-app key state. Check pulses the Boolean output. Key accepts names and decimal virtual-key codes.
+Is Playing,Other,Related implementation,Is Playing,22886,IsPlayingBool,Green Boolean Playing and Stop trigger are supported. FlowStone Alpha also has a Ruby Playing outlet.
+Key Down,Other,OpenStone catalog match,Key Down,22623,KeyDown,"Boolean Enable and Int Array Key Codes. Reports Code, Repeat, Flags and Char from OpenStone window key presses."
+Key Up,Other,OpenStone catalog match,Key Up,22634,KeyUp,"Boolean Enable and Int Array Key Codes. Reports Code, Repeat, Flags and Char from OpenStone window key releases."
+MAC Addresses,Other,OpenStone catalog match,MAC Addresses,23041,MAC,Get snapshots the desktop network interfaces as a comma-separated string.
+Matrix,Other,OpenStone catalog match,Matrix,23047,ModMatrix,"String Connections map of zero-based input/output pairs. Expandable generic signal ports support Green values, triggers, and streams. Stream map edits take effect on the next audio buffer."
+Measure Text,Other,OpenStone catalog match,Measure Text,23304,MeasureText,
+Message Box,Other,OpenStone catalog match,Message Box,23597,MsgBox,"Shows an icon and configurable OK, OK/Cancel, or Yes/No buttons and outputs an affirmative Boolean result."
+Midi Sequencer Track,Other,OpenStone catalog match,MIDI Sequencer Track,25147,SeqMidi,MIDI inlet and outlet record or replay one take through the shared Sequencer transport. Saved projects preserve the take and its event timing.
+Module,Other,OpenStone catalog match,Module,21165,Custom,
+Module,Other,Review variant,,21165,Deprecated,Compatibility class with a generic Module label.
+Module GUI,Other,OpenStone catalog match,MGUI,23496,ModuleGui,
+Module Properties GUI,Other,OpenStone catalog match,Module Properties GUI,23498,ModuleGui,
+Module Wireless Output,Other,OpenStone catalog match,Module Wireless Output (Dynamic),25980,WirelessOutDynamicExt,Publishes Green signals one level above the node.
+Module Wireless Output,Other,OpenStone catalog match,Module Wireless Output,26227,WirelessOutStaticExt,Publishes Green signals one level above the node.
+Multiplexer,Other,OpenStone catalog match,Multiplexer,23650,Multiplexer,Routes any connector type to the indexed output. Unselected DSP routes are disconnected.
+Network Client,Other,OpenStone catalog match,Network Client,23789,NetworkClient,"TCP or UDP client with String and hex transfer, status, Sent trigger, and activity log."
+Network Server,Other,OpenStone catalog match,Network Server,23791,NetworkServer,"TCP or UDP server with String and hex transfer, broadcast replies, IP address, and activity log."
+Offline Mode,Other,OpenStone catalog match,Offline Mode,23519,OfflineMode,Reports the host offline render mode as a Green Boolean.
+Pixel to Grid,Other,OpenStone catalog match,Pixel to Grid,23657,PixelToGrid,Includes Pixel to Grid (Area). Uses 8 logical pixels per grid unit.
+Point Inside Area,Other,OpenStone catalog match,Point Inside Area,20237,PointInArea,
+Point Inside Polygon,Other,OpenStone catalog match,Point Inside Polygon,20302,PointInPolygon,
+Point To Float,Other,OpenStone catalog match,Point to Float,22165,PointToFloat,Splits a Green Point into X and Y Float outputs.
+Redraw Limiter,Other,OpenStone catalog match,Redraw Limiter,25028,RedrawLimiter,Throttles redraw triggers to 100 Hz and drops triggers during redraw suspension.
+Schematic File Path,Other,OpenStone catalog match,Schematic File Path,21347,SchematicFolder,"Reports the saved schematic folder and filename, including during After Load. Unsaved schematics return empty strings."
+Selector,Other,OpenStone catalog match,Selector,25209,Selector,Routes the indexed input of any connector type. Unselected DSP branches are disconnected.
+Set Pixel,Other,OpenStone catalog match,Set Pixel,25282,SetPixel,
+Settings,Other,OpenStone catalog match,Settings,26232,XSettings,"Read-only Float output with a saved selector for zoom, sample rate, and ASIO buffer sizes. OpenStone Settings Store provides keyed text persistence."
+SFZ Parser,Other,OpenStone catalog match,SFZ Parser,25366,SFZ,Path and Load return Result and a named OpenStone Bus of per-region arrays in place of the Ruby data outlet.
+Shell Execute,Other,OpenStone catalog match,Shell Execute,25349,ShellExecute,Launches a program with arguments. Supports waiting for exit and detached execution.
+Show Cursor,Other,OpenStone catalog match,Show Cursor,25357,ShowCursor,
+Smooth,Other,OpenStone catalog match,View Smooth,25394,Smooth,
+Start Folder,Other,OpenStone catalog match,Start Folder,24685,PluginFolder,String Test input and Folder output. Uses the installed folder in a host and Test or the containing export configuration in the editor.
+State Machine,Other,OpenStone catalog match,State Machine,25956,StateMachine,"Int Ctrl, String Map, and Trigger Reset inputs. Int state and Boolean map syntax outputs. Uses sN; declarations and control -> target; transitions."
+Stream Sequencer Track,Other,OpenStone catalog match,Stream Sequencer Track,25145,SeqStream,Mono4 inlet and outlet record and replay one take up to 60 seconds through the shared Sequencer transport. Saved projects preserve all four lanes and the recording sample rate.
+Suspend Redraws,Other,OpenStone catalog match,Suspend Redraws,25665,RedrawsSuspended,Reports redraw suspension as a Green Boolean.
+SVG to Bitmap,Other,OpenStone catalog match,SVG,26469,Svg,
+System Folders,Other,OpenStone catalog match,System Folders,25625,SystemFolders,Returns Documents and AppData paths plus the folder for the supplied ID.
+System Fonts,Other,OpenStone catalog match,System Fonts,22095,SystemFonts,Lists available font families as an array and newline-delimited text with a count.
+Tempo,Other,OpenStone catalog match,Tempo,25685,Tempo,Reports the host tempo in BPM as a Green Float.
+Text,Other,OpenStone catalog match,Multiline String,23655,MultiLineEdit,
+Text Load,Other,OpenStone catalog match,Text Load,25746,TextLoad,Reads text on Load and pulses Loaded on success.
+Text Save,Other,OpenStone catalog match,Text Save,25748,TextSave,Writes text on Save and pulses Saved after the file is written.
+Ticker 100,Other,Review variant,Tick,25732,IOComponentTickerBase,Base class with ticker metadata.
+Time,Other,OpenStone catalog match,Time,25750,SystemTime,Samples local time on Get with Sunday = 0 and January = 1 as in Alpha.
+Time Signature,Other,OpenStone catalog match,Time Signature,25779,TimeSignature,Reports the host numerator and denominator as separate Green Floats.
+Timer,Other,OpenStone catalog match,Timer,21169,CustomTimer,Repeats at the Int millisecond interval between Start and Stop.
+Tooltip Help,Other,OpenStone catalog match,Tooltip Help,23371,MHelp,Supplies a tooltip with a bold title and body for the containing module.
+Trigger Button,Other,OpenStone catalog match,Trigger,20958,ButtonTrigger,
+Video Stream In,Other,OpenStone catalog match,Video Stream In,25901,VlcVideoStreamIn,"Qt Multimedia supplies automatic or manually grabbed Bitmap frames, with size, play state, and position."
+Web URL,Other,OpenStone catalog match,Web URL,25726,WebURL,Opens the supplied URL through the desktop’s default handler on DoIt.
+Wireless Input,Other,OpenStone catalog match,Wireless,25987,WirelessInDynamic,
+Wireless Input,Other,OpenStone catalog match,Wireless Input,26223,WirelessInStatic,
+Wireless Output,Other,OpenStone catalog match,WL-Link,25973,WirelessOutDynamicInt,
+Wireless Output,Other,OpenStone catalog match,Wireless Output,26225,WirelessOutStaticInt,
+Zoom,Other,OpenStone catalog match,Zoom,21653,Zoom,"Applies a Float scale on Set, uses zero for fit, and reports the applied scale."
+Delay Compensation,Presets and plug-in host,OpenStone catalog match,Delay Compensation,26000,VSTDelayCompensation,Reports latency in samples through the plug-in host interface.
+Preset Array,Presets and plug-in host,OpenStone catalog match,Preset Array,20332,PresetFloatArray,Stores indexed Float Array values per program.
+Preset Bool,Presets and plug-in host,OpenStone catalog match,Preset Bool,21348,PresetBool,Stores and automates Boolean values per program.
+Preset Bypass,Presets and plug-in host,OpenStone catalog match,Preset Bypass,21373,PresetBypass,Exposes a dedicated Boolean bypass parameter to the host.
+Preset Float,Presets and plug-in host,OpenStone catalog match,Preset Float,20306,PresetFloat,Stores and automates normalized Float values per program.
+Preset From Text,Presets and plug-in host,OpenStone catalog match,Preset From Text,23856,PresetFromPlainText,Loads text into a selected manager and matches parameters by name.
+Preset Load,Presets and plug-in host,OpenStone catalog match,Preset Load,20366,PresetLoad,"Loads FXP/FXB parameters or OpenStone state, with optional ID and version checks."
+Preset Manager,Presets and plug-in host,OpenStone catalog match,Preset Manager,23393,PresetManager,"Selects, names, locks, saves and clears programs on a Preset connection."
+Preset Save,Presets and plug-in host,OpenStone catalog match,Preset Save,20389,PresetSave,"Writes an FXP program or FXB bank, with OpenStone chunks for typed state."
+Preset Show Order,Presets and plug-in host,OpenStone catalog match,Preset Show Order,25710,PresetShowOrder,Lists parameters by order with optional grouping by automation.
+Preset String,Presets and plug-in host,OpenStone catalog match,Preset String,24798,PresetString,Stores String values per program.
+Preset To Text,Presets and plug-in host,OpenStone catalog match,Preset To Text,23873,PresetToPlainText,Writes the current program or the selected manager's bank as a text table.
+VST Editor Open,Presets and plug-in host,OpenStone catalog match,VST Editor Open,26002,VSTEditorOpen,Reads editor visibility from the plug-in host interface.
+VST Host Info,Presets and plug-in host,OpenStone catalog match,VST Host Info,26373,VstHostInfo,"Reads vendor, product and version from the plug-in host interface."
+VST input,Presets and plug-in host,OpenStone catalog match,VST Input,26004,StreamVstInput,Reads a zero-based host audio channel through the plug-in runtime.
+VST Plugin Info,Presets and plug-in host,OpenStone catalog match,VST Plugin Info,26006,VstPluginInfo,Supplies module metadata to the plug-in export interface.
+VST3 Aux Channels,Presets and plug-in host,OpenStone catalog match,VST3 Aux Channels,25640,Vst3AuxChannels,Declares trailing Mono channels as auxiliary and reports host activation states.
+ASCII to String,Strings,OpenStone catalog match,ASCII to String,20143,AsciiToString,
+Binary to Hex,Strings,OpenStone catalog match,Binary to Hex,20301,StringBinaryToHex,
+Format String,Strings,OpenStone catalog match,Format String,22117,FormatString,
+Hex to Binary,Strings,OpenStone catalog match,Hex to Binary,22430,HexToBinary,
+Hex to Int,Strings,OpenStone catalog match,Hex to Int,22432,HexToInt,
+Hex to String,Strings,OpenStone catalog match,Hex to String,22434,HexToString,
+Int to Hex,Strings,OpenStone catalog match,Int to Hex,22618,IntToHex,
+Special Characters,Strings,OpenStone catalog match,Special Characters,23804,StringSpecialCharacters,
+String Array Find,Strings,OpenStone catalog match,String Array Find,25539,StringArrayFind,
+String Array Split,Strings,OpenStone catalog match,String Array Split,25541,StringArraySplit,
+String Array to String,Strings,OpenStone catalog match,String Array to String,25543,StringArrayToString,
+String Array to String,Strings,OpenStone catalog match,String Array to String,25545,StringArrayToString2,
+String Charset,Strings,OpenStone catalog match,String Charset,25312,StringCharset,
+String Extract,Strings,OpenStone catalog match,String Extract,25572,StringSubStr,
+String Find,Strings,OpenStone catalog match,String Find,25547,StringFind,
+String Format,Strings,OpenStone catalog match,String Format,25292,StringFormat,
+String Format Attributes,Strings,OpenStone catalog match,StrFmtAttr,25302,StringFormatAttributes,
+String Override,Strings,OpenStone catalog match,String Override,25031,StringOverride,
+String Replace,Strings,OpenStone catalog match,String Replace,25481,StringReplace,
+String Split,Strings,OpenStone catalog match,String Split,25570,StringSplit,
+String to ASCII,Strings,OpenStone catalog match,String to ASCII,25574,StringToAscii,
+String to Hex,Strings,OpenStone catalog match,String to Hex,25576,StringToHex,
+String to String Array,Strings,OpenStone catalog match,String to String Array,25578,StringToStringArray,
+String to String Array,Strings,OpenStone catalog match,String to String Array,25580,StringToStringArray2,
+About To Close,Trigger and lifecycle,OpenStone catalog match,About To Close,20544,AboutToClose,Fires once before the schematic closes or is replaced. Waits for Done from every instance with Hold enabled.
+After Duplicate,Trigger and lifecycle,OpenStone catalog match,After Duplicate,20030,AfterDuplicate,
+After Load,Trigger and lifecycle,OpenStone catalog match,After Load,20033,AfterLoad,
+Bool to False Trigger,Trigger and lifecycle,OpenStone catalog match,Bool to False Trigger,20597,BoolToFalse,
+Bool to True Trigger,Trigger and lifecycle,OpenStone catalog match,Bool to True Trigger,20599,BoolToTrue,
+Changed,Trigger and lifecycle,OpenStone catalog match,Changed,20086,AllChanged,
+Counter Advanced,Trigger and lifecycle,OpenStone catalog match,Counter Advanced,21140,CounterUpDown,
+Indexer,Trigger and lifecycle,OpenStone catalog match,Indexer,25813,TriggerToIndex,
+Loop,Trigger and lifecycle,OpenStone catalog match,Loop,22943,Loop,
+Sample and Hold,Trigger and lifecycle,OpenStone catalog match,Sample and Hold,20176,AllSampleAndHold,
+Ticker 100,Trigger and lifecycle,OpenStone catalog match,Tick,25732,Ticker10,
+Ticker 25,Trigger and lifecycle,OpenStone catalog match,Tick,25741,Ticker40,
+Ticker 40,Trigger and lifecycle,OpenStone catalog match,Tick,25736,Ticker25,
+Trigger Delta,Trigger and lifecycle,OpenStone catalog match,Trigger Delta,25744,TriggerTimeDelta,
+Trigger Div,Trigger and lifecycle,OpenStone catalog match,Trigger Div,25808,TriggerDiv,
+Trigger Thread,Trigger and lifecycle,OpenStone catalog match,Trigger Thread,25811,TriggerThread,Queues each pulse for a fresh cascade on the control thread. FlowStone Alpha describes dispatch from a new thread.

@@ -1,0 +1,21 @@
+streamin in;
+memrefin buffer;
+streamout out;
+int result;
+float sample;
+mov rax,buffer[0];
+cmp rax,0;
+jz done;
+mov ecx,1;
+mov edx,in[0];
+mov [rax+rcx],edx;
+fld [rax+rcx];
+fstp sample[0];
+mov [rax+8],6;
+inc [rax+8];
+mov edx,[rax+8];
+mov result[0],edx;
+cvtdq2ps xmm0,result;
+addps xmm0,sample;
+movaps out,xmm0;
+done:
