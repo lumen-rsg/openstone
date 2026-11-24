@@ -353,44 +353,54 @@ if(OPENSTONE_BUILD_DESKTOP)
     target_link_libraries(openstone_ruby_process PUBLIC openstone_editor Qt6::Core PRIVATE openstone_panel_text_layout)
     target_link_libraries(OpenStone PRIVATE openstone_ruby_process openstone_panel_text_layout)
 
-    set_source_files_properties(Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+    set(OPENSTONE_QML_FILES
+        src/desktop/qml/Main.qml
+        src/desktop/qml/controls/ColorPicker.qml
+        src/desktop/qml/controls/ColorSwatch.qml
+        src/desktop/qml/controls/ConnectorTypePicker.qml
+        src/desktop/qml/controls/DspSwatch.qml
+        src/desktop/qml/controls/EditorMenu.qml
+        src/desktop/qml/controls/EditorMenuItem.qml
+        src/desktop/qml/controls/FlatButton.qml
+        src/desktop/qml/controls/OpenStoneMark.qml
+        src/desktop/qml/controls/SignalConnectorIcon.qml
+        src/desktop/qml/editors/DspCodeEditor.qml
+        src/desktop/qml/editors/RubyCodeEditor.qml
+        src/desktop/qml/library/LibraryBrowser.qml
+        src/desktop/qml/library/LibraryConnector.qml
+        src/desktop/qml/library/LibraryPreview.qml
+        src/desktop/qml/panels/DropListMenu.qml
+        src/desktop/qml/panels/DropListPopup.qml
+        src/desktop/qml/panels/FrontPanel.qml
+        src/desktop/qml/panels/PanelDrawing.qml
+        src/desktop/qml/panels/PanelEditControl.qml
+        src/desktop/qml/panels/PanelFileDrop.qml
+        src/desktop/qml/panels/PanelPopupList.qml
+        src/desktop/qml/panels/PanelViewEffect.qml
+        src/desktop/qml/panels/ViewClip.qml
+        src/desktop/qml/schematic/Breadcrumb.qml
+        src/desktop/qml/schematic/GreenNode.qml
+        src/desktop/qml/schematic/GreenWire.qml
+        src/desktop/qml/schematic/NodeActionBar.qml
+        src/desktop/qml/schematic/NodeContextMenu.qml
+        src/desktop/qml/schematic/PrimitiveDialogs.qml
+        src/desktop/qml/schematic/SchematicCanvas.qml
+        src/desktop/qml/schematic/SchematicWindows.qml
+        src/desktop/qml/theme/Theme.qml
+    )
+    # Keep component URLs stable within the OpenStone module, including the
+    # recursive panel loaders and the FrontPanel URL used by bitmap rendering.
+    foreach(openstone_qml_file IN LISTS OPENSTONE_QML_FILES)
+        get_filename_component(openstone_qml_name "${openstone_qml_file}" NAME)
+        set_source_files_properties("${openstone_qml_file}" PROPERTIES
+            QT_RESOURCE_ALIAS "${openstone_qml_name}")
+    endforeach()
+    set_source_files_properties(src/desktop/qml/theme/Theme.qml PROPERTIES
+        QT_QML_SINGLETON_TYPE TRUE)
     qt_add_qml_module(OpenStone
         URI OpenStone
         OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/qml/OpenStone"
-        QML_FILES
-            Main.qml
-            OpenStoneMark.qml
-            LibraryBrowser.qml
-            LibraryConnector.qml
-            LibraryPreview.qml
-            Breadcrumb.qml
-            SchematicCanvas.qml
-            SchematicWindows.qml
-            PrimitiveDialogs.qml
-            GreenNode.qml
-            DspCodeEditor.qml
-            RubyCodeEditor.qml
-            DspSwatch.qml
-            NodeActionBar.qml
-            NodeContextMenu.qml
-            EditorMenu.qml
-            EditorMenuItem.qml
-            GreenWire.qml
-            Theme.qml
-            FlatButton.qml
-            ConnectorTypePicker.qml
-            SignalConnectorIcon.qml
-            ColorPicker.qml
-            ColorSwatch.qml
-            FrontPanel.qml
-            PanelDrawing.qml
-            PanelViewEffect.qml
-            ViewClip.qml
-            DropListPopup.qml
-            DropListMenu.qml
-            PanelEditControl.qml
-            PanelPopupList.qml
-            PanelFileDrop.qml
+        QML_FILES ${OPENSTONE_QML_FILES}
         RESOURCES
             assets/fonts/Nunito.ttf
             assets/fonts/OFL-Nunito.txt

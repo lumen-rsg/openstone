@@ -75,6 +75,8 @@ The `.fsm` importer reads the supported portion of a FlowStone schematic and rep
 
 The C++ core is split between `src/editor`, `src/green`, `src/stream`, and `src/yellow`; `src/desktop` connects it to Qt and device backends. Tests include sample-by-sample DSP checks across buffer sizes, editor and persistence checks, and Ruby integration tests.
 
+Desktop QML lives in `src/desktop/qml`: `Main.qml` is the application entry point, with components grouped into `controls`, `editors`, `library`, `panels`, `schematic`, and `theme`. They belong to the single `OpenStone` QML module. CMake assigns resource aliases by filename so existing component URLs and relative panel loaders stay stable when source files move.
+
 - [Manual and runtime notes](docs/manual.md)
 - [Primitive inventory](docs/compatibility/flowstone-alpha-primitive-inventory.csv)
 - [Bundled-module import report](docs/compatibility/flowstone-fsm-bundled-import.json)
