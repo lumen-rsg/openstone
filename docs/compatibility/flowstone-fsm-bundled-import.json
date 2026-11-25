@@ -1,6 +1,6 @@
 {
   "evidence": "Unchanged .hom bodies in authored .fsm wrappers; import and save/reopen only.",
-  "imported": 24,
+  "imported": 40,
   "checked": 124,
   "skipped_without_matching_body": [
     "0-1 Timed Counter-1",
@@ -31,8 +31,8 @@
       "version": 159,
       "module_offset": "0x7e",
       "sha256": "1352145ca7798c5791b6363996bd2e60a773dabf30735cecb1d0d1a16ecc6f36",
-      "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x14e8 (Root/0-1 Timed Counter/Loop Time (s))"
+      "status": "imported",
+      "detail": "159, 52 nodes, 48 links, 0 source links"
     },
     {
       "module": "0-1 To Hz",
@@ -88,7 +88,7 @@
       "module_offset": "0x5a",
       "sha256": "b7ef92876488c00f1d16bee4d11cf2dbccaeb29904a6bb05ffd9ca2b5645dc28",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x2879 (Root/Amp/Label/1)"
+      "detail": "DSP links require matching connector types"
     },
     {
       "module": "Audio Menu",
@@ -103,24 +103,24 @@
       "version": 166,
       "module_offset": "0xa3",
       "sha256": "8f7b8480cf464a85ef27caede7d12767cdef1282e9816810cad7cb15aed60f8f",
-      "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x5991 (Root/Bitmap-Strip LED-Indicator/Bitmap-Strip State/2)"
+      "status": "imported",
+      "detail": "166, 27 nodes, 21 links, 0 source links"
     },
     {
       "module": "Bitmap-Strip State",
       "version": 166,
       "module_offset": "0x96",
       "sha256": "bee9bb23b2bb6d6b0da4096a159e922f7afaf631ead7905a661cf47cbd62769d",
-      "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x410f (Root/Bitmap-Strip State/2)"
+      "status": "imported",
+      "detail": "166, 15 nodes, 11 links, 0 source links"
     },
     {
       "module": "Bitmap",
       "version": 160,
       "module_offset": "0x64",
       "sha256": "989eebccab1c4af3abb4b23a8d6e8b2b6c2dba77b5a07bdaf860aacf7c3b3a37",
-      "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x2c55 (Root/Bitmap/8)"
+      "status": "imported",
+      "detail": "160, 14 nodes, 10 links, 0 source links"
     },
     {
       "module": "Clip",
@@ -207,16 +207,16 @@
       "version": 159,
       "module_offset": "0x7a",
       "sha256": "bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50",
-      "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x5288 (Root/Detuner/Label/1)"
+      "status": "imported",
+      "detail": "159, 303 nodes, 297 links, 0 source links"
     },
     {
       "module": "Distortion",
       "version": 159,
       "module_offset": "0x7f",
       "sha256": "57667e4235573765e346b118765f9d3271ef71d9bd122e572a1833af0db5ebc0",
-      "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x2d89 (Root/Distortion/Gain/Knob/13)"
+      "status": "imported",
+      "detail": "159, 118 nodes, 110 links, 0 source links"
     },
     {
       "module": "Double Stream Biquad (DF1)",
@@ -256,7 +256,7 @@
       "module_offset": "0x5f",
       "sha256": "1f4eb57375b5dfabe799c25596f111855a3048aec5cf0f0aea97e04ac96946d6",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0xf5eb (Root/Echo Delay//Knob/13)"
+      "detail": "This link would create a feedback loop"
     },
     {
       "module": "Edit Box",
@@ -272,7 +272,7 @@
       "module_offset": "0x71",
       "sha256": "cf2508a646b9f6ed09c6ba030ebff12d584905319d6a7353c71b26b2948766a2",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0xd0a0 (Root/Envelope Follower/Knob - Static/Knob/13)"
+      "detail": "This link would create a feedback loop"
     },
     {
       "module": "FFT Display",
@@ -311,8 +311,8 @@
       "version": 159,
       "module_offset": "0x84",
       "sha256": "b4361587dbd113966dd6302d386eb96e25132d0a00f71a8e68dd5b5c8bad6f3a",
-      "status": "rejected",
-      "detail": "Unsupported Green connector conversion"
+      "status": "imported",
+      "detail": "159, 7 nodes, 4 links, 0 source links"
     },
     {
       "module": "Float Graph Recorder",
@@ -384,39 +384,39 @@
       "module_offset": "0xa6",
       "sha256": "0fec27f4bc44682f345c24864244778bb6b48d79c3108bd53303eb3706cd9261",
       "status": "imported",
-      "detail": "159, 10 nodes, 7 links, 1 source links"
+      "detail": "159, 10 nodes, 7 links, 0 source links"
     },
     {
       "module": "Knob - Animated",
       "version": 159,
       "module_offset": "0xc7",
       "sha256": "d23c6d34ab0b4e1845b20e39871f11b61973224b0beadaeaf72c9725b300a413",
-      "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x1f6c7 (Root/Knob - Animated/Knob/1)"
+      "status": "imported",
+      "detail": "159, 95 nodes, 92 links, 0 source links"
     },
     {
       "module": "Knob - Static With Gauge",
       "version": 159,
       "module_offset": "0x11b",
       "sha256": "a93cd23fe23a67cee13ff30a5dfd443648a58371edbd8ef79d80666457264f5e",
-      "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x360e (Root/Knob - Static With Gauge/Knob/13)"
+      "status": "imported",
+      "detail": "159, 109 nodes, 105 links, 0 source links"
     },
     {
       "module": "Knob - Static",
       "version": 159,
       "module_offset": "0xa6",
       "sha256": "a945dde82d2e153fd8a17ddd354e5761d4a1a6a3be8f9e1ec624927fa6bd794d",
-      "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x282e (Root/Knob - Static/Knob/1)"
+      "status": "imported",
+      "detail": "159, 98 nodes, 95 links, 0 source links"
     },
     {
       "module": "LED-Indicator",
       "version": 166,
       "module_offset": "0x75",
       "sha256": "f08e9ab0041a87ebae2425cd87669c1591689ac5e80965071a9fbf4ff43f2165",
-      "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x89e (Root/LED-Indicator/4)"
+      "status": "imported",
+      "detail": "166, 30 nodes, 28 links, 0 source links"
     },
     {
       "module": "Label",
@@ -495,8 +495,8 @@
       "version": 169,
       "module_offset": "0x77",
       "sha256": "ce2a3457fb16ab7ae91583cbbde6c0b08661926e330a527ca4fcaa367b55606f",
-      "status": "rejected",
-      "detail": "Unsupported Green connector conversion"
+      "status": "imported",
+      "detail": "169, 9 nodes, 5 links, 0 source links"
     },
     {
       "module": "Mono Bool Readout",
@@ -552,7 +552,7 @@
       "module_offset": "0xa8",
       "sha256": "a81d93edb62babf2f90b2110bbfe3946a07cd4b925ab6179cdec3be1a8e04da8",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x97c7 (Root/Moog Filter/Knob - Static/Knob/13)"
+      "detail": "DSP links require matching connector types"
     },
     {
       "module": "Multi LFO",
@@ -560,7 +560,7 @@
       "module_offset": "0x79",
       "sha256": "8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x6b0a (Root/Multi LFO/Selector/1)"
+      "detail": "This link would create a feedback loop"
     },
     {
       "module": "Multi Osc",
@@ -592,15 +592,15 @@
       "module_offset": "0xe8",
       "sha256": "c01d6e6e11701efcd89dbfdbfb3a940062a586380f98464d9942f91c9ab62f2f",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x91d5 (Root/Noise Gate/Knob - Static/Knob/13)"
+      "detail": "DSP links require matching connector types"
     },
     {
       "module": "Overdrive",
       "version": 159,
       "module_offset": "0x76",
       "sha256": "c3a3bddef4760cf389b7c4242bbc1ee97c9ea3681fbf5cfbaf10102486866403",
-      "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x2db0 (Root/Overdrive/Gain/Knob/13)"
+      "status": "imported",
+      "detail": "159, 118 nodes, 110 links, 0 source links"
     },
     {
       "module": "PWM",
@@ -672,7 +672,7 @@
       "module_offset": "0xa0",
       "sha256": "198d724f59e08a99e2888a704474e92f2702c8112a7de23806aee2c22ba2202e",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0xf76a (Root/Ping-Pong Delay//Knob/13)"
+      "detail": "This link would create a feedback loop"
     },
     {
       "module": "Poly Bool Readout",
@@ -736,7 +736,7 @@
       "module_offset": "0x69",
       "sha256": "290717424881e49e5027310f3cb240ff0f7b8019adf70f70da30dd7e98dbd841",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x165ac (Root/Reverb//Knob/13)"
+      "detail": "This link would create a feedback loop"
     },
     {
       "module": "Routing Matrix",
@@ -767,8 +767,8 @@
       "version": 159,
       "module_offset": "0xb9",
       "sha256": "cce3e17254aa7f9c54dbd02a785a0778c5b7e7fe0fc0481471edd3763b8b86ee",
-      "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x12c1 (Root/Sample and Hold/Selector/1)"
+      "status": "imported",
+      "detail": "159, 90 nodes, 92 links, 0 source links"
     },
     {
       "module": "Save Image",
@@ -816,15 +816,15 @@
       "module_offset": "0x8b",
       "sha256": "d6d4ac1da018b7f9ab0f40a8032b34183586de2e430ebecccec1529f7199c7e9",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0xa1ad (Root/Slew Limiter/Knob - Static/Knob/13)"
+      "detail": "This link would create a feedback loop"
     },
     {
       "module": "Slider - Horizontal",
       "version": 159,
       "module_offset": "0xa1",
       "sha256": "dea7e2b1de128b1f9ec43d24712dc70dbea99c2596af876196b4a250361443ee",
-      "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x192b (Root/Slider - Horizontal/Interaction/5)"
+      "status": "imported",
+      "detail": "159, 110 nodes, 105 links, 0 source links"
     },
     {
       "module": "Soft Clip",
@@ -856,7 +856,7 @@
       "module_offset": "0x7d",
       "sha256": "b69daf9be2b4a62ddeea38d0397aa6cd922203978be1a9e205b1241e3720896a",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x3c58 (Root/Stereo Amp - WIth Gauge/Label/1)"
+      "detail": "DSP links require matching connector types"
     },
     {
       "module": "Stereo Amp",
@@ -864,7 +864,7 @@
       "module_offset": "0x67",
       "sha256": "aaf8de6d5a5b08592e2aa9b57c7d1a917426218e385279dc2aed0205451958bd",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x34e4 (Root/Stereo Amp/Label/1)"
+      "detail": "DSP links require matching connector types"
     },
     {
       "module": "Stereo Chorus",
@@ -872,7 +872,7 @@
       "module_offset": "0x76",
       "sha256": "c3b0e82bd39c63d391083fb8278a7bf1602b282ccbec703ff53d7f707b07087e",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x12b1f (Root/Stereo Chorus//Knob/13)"
+      "detail": "This link would create a feedback loop"
     },
     {
       "module": "Stereo Clip",
@@ -928,7 +928,7 @@
       "module_offset": "0xba",
       "sha256": "f1fd850d249a84d646e4ecea96fae3a685872ecf51ef8b7d38cd3c36d51d4607",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x229c3 (Root/Switch - Button/Toggle Switch/12)"
+      "detail": "This link would create a feedback loop"
     },
     {
       "module": "Switch - Flick",
@@ -936,7 +936,7 @@
       "module_offset": "0xf1",
       "sha256": "a2816edaa9ac538a4736d91697a139c25fa4bca8402400ea58212f1514833832",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x2a2d (Root/Switch - Flick/Toggle Switch/9)"
+      "detail": "This link would create a feedback loop"
     },
     {
       "module": "Switch - LED",
@@ -944,7 +944,7 @@
       "module_offset": "0xad",
       "sha256": "134d4b83ca0dcfa655fc38beae2608bc285ccbecbd58e26f5818c075d9f2be4a",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x6d11 (Root/Switch - LED/Toggle Switch/10)"
+      "detail": "This link would create a feedback loop"
     },
     {
       "module": "Switch",
@@ -952,7 +952,7 @@
       "module_offset": "0xb4",
       "sha256": "49be7706ea2ce945bf37c5948bb601df4d0387abda15601c0c3ce384b7c6d0af",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x144d (Root/Switch/Toggle Switch/9)"
+      "detail": "This link would create a feedback loop"
     },
     {
       "module": "Text View",
@@ -967,8 +967,8 @@
       "version": 159,
       "module_offset": "0xfd",
       "sha256": "37d23e44a15e8c1bf79c553cea9a963c9a4cf7f3cf5554bb75c1faac139f4a41",
-      "status": "rejected",
-      "detail": "FlowStone import: Multiple linked code-source strings are not supported at byte 0x548 (Root/Ticker - Custom/1)"
+      "status": "imported",
+      "detail": "159, 10 nodes, 6 links, 0 source links"
     },
     {
       "module": "Trigger De-Thread",
@@ -984,7 +984,7 @@
       "module_offset": "0x5a",
       "sha256": "c336dd5d3b7b5d58e3657abfa99518f43513b4444950dc962edbf588910321bf",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x132fd (Root/VST/Stereo Amp/Label/1)"
+      "detail": "This link would create a feedback loop"
     },
     {
       "module": "VSTi",

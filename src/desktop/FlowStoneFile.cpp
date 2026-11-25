@@ -435,6 +435,7 @@ public:
                     if (c.nativeTag == 1191 || c.nativeTag == 1192) return output ? 1 : c.nativeTag == 1191 ? 3 : 2;
                     if (c.nativeTag == 131 || c.nativeTag == 132) return output ? 1 : c.nativeTag == 131 ? 4 : 3;
                     if (c.storedCodePorts) return output ? c.storedCodePorts->second + 1 : c.storedCodePorts->first;
+                    if (c.node.rubyCode) return static_cast<int>(output ? c.node.rubyCode->ports.outputs.size() : c.node.rubyCode->ports.inputs.size());
                     return static_cast<int>(output ? c.node.outputPorts().size() : c.node.inputPorts().size());
                 };
                 if (output >= portCount(a, true) || input >= portCount(b, false))
@@ -724,7 +725,7 @@ public:
             case 206: n.kind = Unpack; break;
             case 170: n.kind = TooltipHelp; break;
             case 1110: {
-                n.kind = Ruby; out.sourceConnector = true; n.codeSourcePorts = true;
+                n.kind = Ruby; n.codeSourcePorts = true;
                 auto source = string(); skip(16);
                 if (boolean()) fail("Disabled Ruby boxes are not supported yet");
                 auto ins = count(maxRubyPorts); auto outs = count(maxRubyPorts);
@@ -743,11 +744,10 @@ public:
                 skip(state);
                 if (state) warning("Ruby source and connectors are imported; FlowStone's saved Ruby state is not restored yet.");
                 const auto bookmarks = count(); skip(bookmarks * 8);
-                out.storedSource = source;
                 n.rubyCode = rubyCode(source, source, std::move(ports)); break;
             }
             case 22: case 154: {
-                n.kind = tag == 22 ? Assembler : DspCode; out.sourceConnector = true; n.codeSourcePorts = true;
+                n.kind = tag == 22 ? Assembler : DspCode; n.codeSourcePorts = true;
                 skip(8); const auto ins = u8(); const auto outs = u8();
                 out.storedCodePorts = std::pair{ins, outs};
                 out.storedSource = string();
@@ -867,86 +867,28 @@ public:
         }
         for (auto& child : item.children) resolvePanels(child, &item);
     }
-    void resolveCodeSources() {
-        std::map<FlowStoneNode*, FlowStoneNode*> parents;
-        std::map<FlowStoneNode*, QString> paths;
-        std::vector<FlowStoneNode*> codes;
-        const auto walk = [&](auto&& self, FlowStoneNode& item, FlowStoneNode* parent, QString location) -> void {
-            parents[&item] = parent;
-            paths[&item] = location;
-            if (item.sourceConnector) codes.push_back(&item);
-            for (auto& child : item.children) self(self, child, &item,
-                location + "/" + QString::fromStdString(child.node.kind == Module ? child.node.moduleName :
-                    (child.node.label.empty() ? std::to_string(child.node.id) : child.node.label)));
-        };
-        walk(walk, result.root, nullptr, "Root");
-        using Key = std::pair<FlowStoneNode*, int>;
-        std::set<Key> active;
-        std::map<Key, std::string> values;
-        std::function<std::string(FlowStoneNode&, int)> value;
-        const auto input = [&](FlowStoneNode& item, int port, const std::string& fallback) -> std::string {
-            auto* parent = parents.at(&item);
-            if (!parent) return fallback;
-            const SchematicLink* found = nullptr;
-            for (const auto& link : parent->links) if (link.target == item.node.id && link.input == port) {
-                if (found) fail("Multiple linked code-source strings are not supported");
-                found = &link;
-            }
-            if (!found) return fallback;
-            return value(parent->children.at(found->source - 1), found->output);
-        };
-        value = [&](FlowStoneNode& item, int port) -> std::string {
-            path = paths.at(&item);
-            Key key{&item, port};
-            if (auto found = values.find(key); found != values.end()) return found->second;
-            if (active.size() >= 256) fail("Code-source binding depth limit exceeded");
-            if (!active.insert(key).second) fail("Cyclic code-source string binding");
-            std::string source;
-            if (item.sourceConnector && port == 0) source = item.storedCodePorts ? item.storedSource : input(item, 0, item.storedSource);
-            else if (item.node.kind == String && port == 0) source = input(item, 0, std::get<std::string>(*item.node.localValue));
-            else if (item.node.kind == ModuleInput && port == 0) {
-                auto* module = parents.at(&item);
-                source = input(*module, item.node.boundaryIndex, "");
-            } else if (item.node.kind == ModuleOutput && port == 0) source = input(item, 0, "");
-            else if (item.node.kind == Module && std::cmp_less(port, item.node.moduleOutputs.size())) {
-                const auto id = item.node.moduleOutputs.at(port).endpoint;
-                source = input(item.children.at(id - 1), 0, "");
-            } else fail("Unsupported linked code-source string producer");
-            active.erase(key);
-            values.emplace(key, source);
-            return source;
-        };
-        // Compile only after all source links (including module boundaries) exist.
-        for (auto* item : codes) {
-            const auto source = value(*item, 0);
-            path = paths.at(item);
-            if (item->storedCodePorts) {
-                try {
-                    auto program = stream::compileDspCode(source, dspLanguage(item->node.kind));
-                    const auto [ins, outs] = *item->storedCodePorts;
-                    if (program.inputs().size() != ins || program.outputs().size() != outs) fail("Code declarations disagree with stored connectors");
-                    item->node.dspCode = DspCodeState{source, source, std::move(program)};
-                } catch (const stream::DspCompileError& error) {
-                    fail("Cannot compile source: " + QString::fromUtf8(error.what()));
-                }
-            } else {
-                auto ports = std::move(item->node.rubyCode->ports);
-                item->node.rubyCode = rubyCode(source, source, std::move(ports));
+    void compileCode(FlowStoneNode& item, const QString& location) {
+        path = location;
+        if (item.storedCodePorts) {
+            try {
+                auto program = stream::compileDspCode(item.storedSource, dspLanguage(item.node.kind));
+                const auto [ins, outs] = *item.storedCodePorts;
+                if (program.inputs().size() != ins || program.outputs().size() != outs) fail("Code declarations disagree with stored connectors");
+                item.node.dspCode = DspCodeState{item.storedSource, item.storedSource, std::move(program)};
+            } catch (const stream::DspCompileError& error) {
+                fail("Cannot compile source: " + QString::fromUtf8(error.what()));
             }
         }
-        const auto remap = [&](auto&& self, FlowStoneNode& item) -> void {
-            for (auto& link : item.links) {
-                const auto& a = item.children.at(link.source - 1).node;
-                const auto& b = item.children.at(link.target - 1).node;
-                if (a.codeSourcePorts) link.output = link.output ? link.output - 1 : *a.codeSourcePort(true);
-                if (b.rubyCode && b.codeSourcePorts) link.input = link.input ? link.input - 1 : *b.codeSourcePort(false);
-            }
-            item.node.inputTriggers.resize(item.node.inputPorts().size());
-            item.node.outputTriggers.resize(item.node.outputPorts().size());
-            for (auto& child : item.children) self(self, child);
-        };
-        remap(remap, result.root);
-        path = "Root";
+        // Native Ruby's declared connectors are data ports starting at zero.
+        // Its stored source was installed during parsing without evaluating Ruby.
+        for (auto& child : item.children) compileCode(child, location + "/" + QString::fromStdString(
+            child.node.kind == Module ? child.node.moduleName : (child.node.label.empty() ? std::to_string(child.node.id) : child.node.label)));
+        for (auto& link : item.links) {
+            const auto& source = item.children.at(link.source - 1).node;
+            if (source.dspCode && source.codeSourcePorts) link.output = link.output ? link.output - 1 : *source.codeSourcePort(true);
+        }
+        item.node.inputTriggers.resize(item.node.inputPorts().size());
+        item.node.outputTriggers.resize(item.node.outputPorts().size());
     }
     FlowStoneImport parse() {
         version = u16(); result.version = version;
@@ -980,7 +922,8 @@ public:
         resolveSelectors(result.root);
         resolvePanels(result.root);
         if (result.nodes > 100000 || result.links > 1000000) fail("Expanded graph exceeds the import limits");
-        resolveCodeSources();
+        compileCode(result.root, "Root");
+        path = "Root";
         --result.nodes; // Root is not an editor node.
         warning("FlowStone import is experimental. Some drawing layouts, resource bindings and unsupported component records require further work.");
         return std::move(result);

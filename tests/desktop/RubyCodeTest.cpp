@@ -2116,6 +2116,100 @@ end
           "Removing the host restores the empty location for an unsaved project");
 }
 
+void importedRubyDataPorts(const QString& labelPath,const QString& midiPath)
+{
+    using desktop::SchematicFile;
+    const auto create=[] { return Session({}, {}, {}, {}, {.ruby=desktop::makeRubyBackend()}); };
+    auto label=create(); SchematicFile::importFlowStone(label,SchematicFile::read(labelPath),{});
+    auto& drawing=*label.graph().module(1);
+    check(drawing.nodes()[2].kind==Ruby && drawing.inputType(3,0)==green::Type::View &&
+          drawing.inputType(3,1)==green::Type::Color && drawing.inputType(3,2)==green::Type::String &&
+          !drawing.nodes()[2].rubyCode->running,"Native Label imports its View/color/String data ports without executing Ruby");
+    const auto verifyLabel=[](Schematic& root) {
+        auto& g=*root.module(1); const auto source=g.nodes()[2].rubyCode->source; g.runRuby(3);
+        if(g.nodes()[2].rubyCode->error) throw std::runtime_error(g.nodes()[2].rubyCode->status);
+        for(const auto& text : {std::string("Imported label"),std::string("def init; raise 'ordinary text'; end")}) {
+            g.setValue(4,yellow::Color{0xff2468ab}); g.setValue(5,text);
+            const auto paint=root.renderPanel(g.frontPanel()->view);
+            check(paint.size()==1 && std::holds_alternative<yellow::TextCommand>(paint.front().command),
+                  "Unchanged native Label draws through data View zero");
+            const auto& command=std::get<yellow::TextCommand>(paint.front().command);
+            check(command.text==text && command.color==yellow::Color{0xff2468ab} && command.font.face=="Arial" &&
+                  command.font.style.bold && command.format.horizontal==yellow::HorizontalAlignment::Center &&
+                  g.nodes()[2].rubyCode->source==source && !g.nodes()[2].rubyCode->error,
+                  "Native color/String events redraw the label without replacing its stored Ruby program");
+        }
+    };
+    verifyLabel(label.graph()); QTemporaryDir files; const auto labelFile=files.filePath("native-label.ostone");
+    const auto savedLabel=SchematicFile::project(label); SchematicFile::write(labelFile,savedLabel); auto labelCopy=create();
+    SchematicFile::loadProject(labelCopy,SchematicFile::read(labelFile),{});
+    check(SchematicFile::project(labelCopy)==savedLabel,"Native Label code, data wiring, panel and values survive disk save/reopen");
+    verifyLabel(labelCopy.graph());
+
+    auto midi=create(); SchematicFile::importFlowStone(midi,SchematicFile::read(midiPath),{});
+    auto& root=midi.graph(); auto& encoder=*root.module(1);
+    check(encoder.nodes()[3].kind==Ruby && encoder.inputType(4,0)==green::Type::Float &&
+          encoder.inputType(4,1)==green::Type::Int && encoder.outputType(4)==green::Type::MIDI &&
+          !encoder.nodes()[3].rubyCode->running,"Native encoder preserves numeric input zero and MIDI output zero without running at import");
+    const auto value=root.addNode(Float,0,0,-.125f); root.connect({value,1,0},LinkNotification::Silent);
+    const auto verifyMidi=[&](Schematic& graph) {
+        auto& g=*graph.module(1); g.runRuby(4);
+        if(g.nodes()[3].rubyCode->error) throw std::runtime_error(g.nodes()[3].rubyCode->status);
+        for(int cc : {74,1}) {
+            const auto before=graph.inspectOutput(1).triggers; g.setValue(1,std::int32_t{cc});
+            check(graph.inspectOutput(1).triggers==before,"Changing native encoder input one does not run its value-zero branch");
+            for(auto [input,expected] : {std::pair{0.f,0},std::pair{.5f,63},std::pair{1.f,127},std::pair{-.5f,0},std::pair{1.5f,127}}) {
+                const auto count=graph.inspectOutput(1).triggers; graph.setValue(value,input);
+                const green::Value message=green::MidiMessage{{0xb0,std::uint8_t(cc),std::uint8_t(expected)}};
+                if(g.nodes()[3].rubyCode->error) throw std::runtime_error(g.nodes()[3].rubyCode->status);
+                if(graph.readValue(1)!=message || graph.inspectOutput(1).triggers!=count+1) {
+                    std::string actual;
+                    for(auto byte : std::get<green::MidiMessage>(graph.readValue(1)).bytes) actual+=std::to_string(byte)+",";
+                    throw std::runtime_error("Native encoder at "+std::to_string(input)+" CC "+std::to_string(cc)+": bytes "+actual+
+                                             " events "+std::to_string(graph.inspectOutput(1).triggers-count));
+                }
+                check(graph.readValue(1)==message && graph.inspectOutput(1).triggers==count+1 && !g.nodes()[3].rubyCode->error,
+                      "Unchanged Ruby callback zero emits the clamped MIDI CC packet through native output zero");
+            }
+        }
+    };
+    verifyMidi(root); const auto midiFile=files.filePath("native-midi-encode.ostone");
+    const auto savedMidi=SchematicFile::project(midi); SchematicFile::write(midiFile,savedMidi); auto midiCopy=create();
+    SchematicFile::loadProject(midiCopy,SchematicFile::read(midiFile),{});
+    check(SchematicFile::project(midiCopy)==savedMidi,"Native MIDI encoder code, connector names, values and links survive disk save/reopen");
+    verifyMidi(midiCopy.graph());
+    std::cout<<"Unchanged native Ruby Label and MIDI encoder: data ports, execution and disk save/reopen passed\n";
+}
+
+void rubyFlowStoneMidiConstructor()
+{
+    Schematic g({}, {}, {}, {}, {.ruby=desktop::makeRubyBackend()});
+    const auto script=g.addNode(Ruby,0,0), trigger=g.addNode(Trigger,0,0);
+    g.setRubyDraft(script,R"ruby(# input Trigger go
+# output MIDI message
+def init
+  [-1,16].each do |channel|
+    begin
+      Midi.new(0xB0,channel,74,127)
+      raise "Accepted invalid zero-based channel"
+    rescue ArgumentError
+    end
+  end
+end
+def event(i,v)
+  output 0,Midi.new(0xBF,0,74,127)
+  output 0,Midi.new(0xC0,15,42,0)
+  output 0,Midi.new("f0 7d 02 f7")
+end
+)ruby");
+    g.applyRubyPorts(script); g.connect({trigger,script,0},LinkNotification::Silent);
+    const auto sink=g.addNode(VstMidiOut,0,0); g.connect({script,sink,0},LinkNotification::Silent);
+    std::vector<green::MidiMessage> sent; g.setHostMidiOutput([&](const auto& message){sent.push_back(message);});
+    g.runRuby(script); g.fireTrigger(trigger);
+    check(!g.nodes()[0].rubyCode->error && sent==std::vector<green::MidiMessage>{{{0xb0,74,127}},{{0xcf,42}},{{0xf0,0x7d,2,0xf7}}},
+          "FlowStone Midi accepts zero-based channel endpoints, rejects invalid channels, and preserves channel/program/SysEx wire formats");
+}
+
 }
 
 int main(int argc, char** argv)
@@ -2126,6 +2220,11 @@ int main(int argc, char** argv)
         return 77;
     }
     try {
+        if(argc>1 && QByteArray(argv[1])=="--imported-data-ports") {
+            check(argc==4,"Native Label and MIDI encoder fixtures required");
+            importedRubyDataPorts(QString::fromLocal8Bit(argv[2]),QString::fromLocal8Bit(argv[3]));
+            return 0;
+        }
         QTemporaryDir files;
         check(files.isValid(), "Create a temporary workspace");
         rubyLinkedSourceUpdatesAfterGreenDispatch(files.filePath(QStringLiteral("ruby-source.ostone")));
@@ -2136,6 +2235,7 @@ int main(int argc, char** argv)
         rubyRunsTheFlowStoneKnobWithVisualPorts();
         rubyValuePassesLiveArraysHashesAndCustomObjects();
         rubyMidiRoutesChannelMessagesAndSysEx(files.filePath(QStringLiteral("ruby-midi.ostone")));
+        rubyFlowStoneMidiConstructor();
         rubySchedulesInputsAndOutputsAgainstSchematicClock();
         rubyQueueOrdersAcrossNodesAndKeepsMethodArguments();
         rubyClearEventsCancelsOnlyTheCallingNode();

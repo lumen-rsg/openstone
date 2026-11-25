@@ -11,7 +11,8 @@ struct FlowStoneNode {
     SchematicNode node;
     std::vector<FlowStoneNode> children;
     std::vector<SchematicLink> links;
-    // All code boxes reserve output zero for source; only Ruby also reserves input zero.
+    // DSP/Assembler reserve native output zero for source. Ruby's saved lists
+    // contain data connectors only; OpenStone adds its own editable source ports.
     int nativeTag = 0;
     std::optional<green::Point> panelPosition;
     bool panelMouse = false;
@@ -19,7 +20,6 @@ struct FlowStoneNode {
     bool panelBorder = true;
     quint16 viewScope = 0;
     bool implicitView = false;
-    bool sourceConnector = false;
     std::string storedSource;
     std::optional<std::pair<int, int>> storedCodePorts;
 };

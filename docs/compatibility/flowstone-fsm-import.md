@@ -124,7 +124,7 @@ are not silently replaced with empty modules or disconnected nodes.
 - DSP Code (154) and Assembler (22): unchanged source, declared connectors, source
   string outputs and bounded skipping of embedded compiled caches.
 - Ruby (1110): unchanged source, manually configured named/type connectors, and
-  linked source strings. Serialized Ruby state is consumed as opaque bytes and
+  zero-based native data links. Serialized Ruby state is consumed as opaque bytes and
   reported as unrestored; it is never deserialized by the importer.
 - MFC CString short/extended lengths, UTF-16 strings and Windows-1252 narrow text.
 
@@ -378,23 +378,26 @@ subsequent changes survive project snapshots and disk save/reopen.
 ## Code-source connectors and caches
 
 DSP/Assembler boxes have a native source-string **output at index zero**; their
-signal inputs already start at zero. Ruby reserves index zero on **both sides**
-for source strings. Imported nodes expose these as String ports named **Source**
-following their data ports in OpenStone, preserving DSP signal indices and Ruby
-callback indices. The distinction is important: treating DSP input zero as a
-source connector incorrectly disconnects the first signal input in bundled Delay
-and filter modules.
+signal inputs already start at zero. Their source outputs are remapped to a
+String port named **Source** following the data outputs in OpenStone. These
+outputs can feed String boxes and pass through module boundaries. Treating DSP
+input zero as source incorrectly disconnects the first signal input in bundled
+Delay and filter modules.
 
-Source outputs can feed String boxes and pass through module boundaries. Ruby
-source inputs resolve from linked String boxes, other code-source outputs and
-module boundaries before the detached import is installed. They override an
-empty or stale stored Ruby source. Cyclic bindings, multiple source writers and
-unsupported source producers fail explicitly. Import parsing does not run Ruby.
+Ruby's saved input/output lists contain **data connectors starting at zero**,
+including View, Float, Int, String and MIDI. The stored Ruby source is separate
+from these lists. The importer preserves all native Ruby link indices and
+validates them against the declared data-port counts. It never evaluates Ruby
+or follows data input zero as code during parsing. Earlier importer builds
+incorrectly treated native Ruby input/output zero as implicit source sockets;
+reimport affected modules from their original `.fsm` files.
 
-Source ports, effective source and links are saved in `.ostone`. Changing data
-port counts remaps the Source connections too. Editing a linked String updates a
-Ruby node's source; a running node restarts through the existing Ruby host path.
-Updates wait for Green dispatch to unwind before rebuilding ports or runtimes.
+OpenStone adds its own editable String **Source** ports after the Ruby data
+connectors. They are not extra sockets that native links can address. After
+conversion, an explicitly connected OpenStone Source input can still update the
+program; a running node restarts through the existing Ruby host path. Updates
+wait for Green dispatch to unwind before rebuilding ports or runtimes. Source
+ports and links survive `.ostone` save/reopen and follow data-port resizing.
 
 All native compiled-cache bytes are discarded. The reader walks the serialized
 port tables, variable records (scalar, array and memory/reference kinds), four
@@ -694,6 +697,7 @@ Useful serializer addresses in that build (image base `0x140000000`):
 | Compiled-code cache | `0x14020aff0` |
 | Variable reference records | `0x1402dfba0` |
 | Ruby state | `0x140123960` |
+| Ruby declared input/output indices / input callback | `0x140123d20`–`0x140123f05` / `0x140123300` |
 | Value-box constructor / value state | `0x140306c30` / `0x140308100` |
 | Custom connector-box layout | `0x140083ee0` |
 | Multiline text / version-177 property header | `0x14036f1d0` / `0x1403bf950` |
@@ -1295,10 +1299,42 @@ module boundaries, header/following-record alignment, silent import/wiring and
 disk save/reopen. Truncated headers and invalid input/output indices reject
 atomically. These are headless import/runtime checks, not live Windows tests.
 
-The latest Boolean Not inventory remains **24/124** complete enclosing-module
+The Boolean Not inventory remained **24/124** complete enclosing-module
 imports/save-reopens. Amp, Detuner and Multi LFO now pass their Preset modules;
 their next failures are unsupported linked code-source string producers in
 `Label/1`, `Label/1` and `Selector/1`, respectively.
+
+The Ruby connector correction raises the complete-module scan to **40/124**
+imports/save-reopens. The 16 newly passing modules are 0-1 Timed Counter,
+Bitmap-Strip LED-Indicator, Bitmap-Strip State, Bitmap, Detuner, Distortion,
+Float Array Reader, Knob - Animated, Knob - Static With Gauge, Knob - Static,
+LED-Indicator, Midi-CC Encode, Overdrive, Sample and Hold, Slider - Horizontal
+and Ticker - Custom. Every one is now a hash-pinned complete-module regression
+fixture. The scan measures import and project persistence, not complete runtime
+parity for each module.
+
+Execution tests use Amp's unchanged Label submodule (`0x2e8`–`0x614`, exclusive)
+and the complete unchanged Midi-CC Encode module (`0x77` onward). Label retains
+View/color/String inputs 0/1/2 and draws its text, color, font and alignment;
+code-looking label text stays ordinary data. The encoder's Float input zero
+emits correctly clamped CC packets through MIDI output zero, and changing Int
+input one changes the CC number without running its value-input branch. Both
+unchanged Ruby kernels execute again after disk save/reopen. Tests use the
+installed Ruby backend when available; importer-only fixture checks still run
+without it. Vendor Ruby sources remain in the external corpus.
+
+The encoder also exposed a missing runtime API: native code constructs packets
+with `Midi.new`, using channel zero for the first MIDI channel. OpenStone now
+supports this spelling with channels 0–15, including Program Change and SysEx.
+The existing `MIDI.new` constructor retains its channels 1–16. Headless tests
+check both channel endpoints, invalid-channel rejection and packet lengths;
+the unchanged encoder exercises `Midi.new` through imported output zero.
+
+Authored tests verify native String input/output zero, non-executing import,
+invalid extra native connector indices, and independently connected OpenStone
+Source ports through data-port resizing and disk save/reopen. Amp now reaches
+a DSP connector-type mismatch, while Multi LFO reaches a feedback-link rejection;
+these remain explicit blockers in the refreshed inventory.
 
 Independent GUI fixtures exercise all four panel IDs across versions 154, 155,
 170 and 177; actual text drawing commands; anchor metadata; live legacy size and

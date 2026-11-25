@@ -462,6 +462,7 @@ if(OPENSTONE_BUILD_DESKTOP)
                 -B ${CMAKE_CURRENT_SOURCE_DIR}/tests/tools/FlowStoneBundledImportTest.py
                 --flowstone-root ${OPENSTONE_FLOWSTONE_ROOT}
                 --probe $<TARGET_FILE:openstone_flowstone_file_tests>
+                --ruby-probe $<TARGET_FILE:openstone_ruby_tests>
                 --output ${CMAKE_CURRENT_BINARY_DIR}/flowstone-bundled-import)
         endif()
         add_executable(openstone_sequencer_project_tests tests/desktop/SequencerProjectTest.cpp src/desktop/SchematicFile.cpp)

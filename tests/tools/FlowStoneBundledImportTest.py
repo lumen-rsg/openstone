@@ -6,6 +6,7 @@ independently authored .fsm document; never alter the module/code/cache bytes.
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import struct
 import subprocess
@@ -30,6 +31,26 @@ MODULES = {
     'Denormal Remover (Noise)': (170, 0xd5, 'bc2626a1c1bc2ed1fad0d2d18841aab006e68e4974d8472842e2a937bbc3a332'),
     'Denormal Remover (Trunc)': (170, 0xe4, '7cc43c8ebda5761ae7460129d042c8bdc0dd21e8b211f8d4936b25996b025065'),
     'FM De-modulator': (159, 0x7a, 'd5d5dd5de4e6d655abb1afcaf8a1556f410908fefba110bb13e829e8e2dd6ad6'),
+}
+
+# Complete bundled modules unblocked by native Ruby data-connector numbering.
+RUBY_DATA_MODULES = {
+    '0-1 Timed Counter': (159, 0x7e, '1352145ca7798c5791b6363996bd2e60a773dabf30735cecb1d0d1a16ecc6f36'),
+    'Bitmap-Strip LED-Indicator': (166, 0xa3, '8f7b8480cf464a85ef27caede7d12767cdef1282e9816810cad7cb15aed60f8f'),
+    'Bitmap-Strip State': (166, 0x96, 'bee9bb23b2bb6d6b0da4096a159e922f7afaf631ead7905a661cf47cbd62769d'),
+    'Bitmap': (160, 0x64, '989eebccab1c4af3abb4b23a8d6e8b2b6c2dba77b5a07bdaf860aacf7c3b3a37'),
+    'Detuner': (159, 0x7a, 'bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50'),
+    'Distortion': (159, 0x7f, '57667e4235573765e346b118765f9d3271ef71d9bd122e572a1833af0db5ebc0'),
+    'Float Array Reader': (159, 0x84, 'b4361587dbd113966dd6302d386eb96e25132d0a00f71a8e68dd5b5c8bad6f3a'),
+    'Knob - Animated': (159, 0xc7, 'd23c6d34ab0b4e1845b20e39871f11b61973224b0beadaeaf72c9725b300a413'),
+    'Knob - Static With Gauge': (159, 0x11b, 'a93cd23fe23a67cee13ff30a5dfd443648a58371edbd8ef79d80666457264f5e'),
+    'Knob - Static': (159, 0xa6, 'a945dde82d2e153fd8a17ddd354e5761d4a1a6a3be8f9e1ec624927fa6bd794d'),
+    'LED-Indicator': (166, 0x75, 'f08e9ab0041a87ebae2425cd87669c1591689ac5e80965071a9fbf4ff43f2165'),
+    'Midi-CC Encode': (169, 0x77, 'ce2a3457fb16ab7ae91583cbbde6c0b08661926e330a527ca4fcaa367b55606f'),
+    'Overdrive': (159, 0x76, 'c3a3bddef4760cf389b7c4242bbc1ee97c9ea3681fbf5cfbaf10102486866403'),
+    'Sample and Hold': (159, 0xb9, 'cce3e17254aa7f9c54dbd02a785a0778c5b7e7fe0fc0481471edd3763b8b86ee'),
+    'Slider - Horizontal': (159, 0xa1, 'dea7e2b1de128b1f9ec43d24712dc70dbea99c2596af876196b4a250361443ee'),
+    'Ticker - Custom': (159, 0xfd, '37d23e44a15e8c1bf79c553cea9a963c9a4cf7f3cf5554bb75c1faac139f4a41'),
 }
 
 # Standalone component records copied unchanged from otherwise not-yet-importable GUI modules.
@@ -218,8 +239,9 @@ def gui_record_document(record, name, version, *, node_count=1, links=()):
 
 def wrap(data, name, version, offset):
     assert struct.unpack_from('<H', data)[0] == version
-    signature = struct.pack('<HfffB', 1, 8, 0, 0, len(name)) + name.encode('ascii')
-    assert data[offset:offset + len(signature)] == signature, 'Unexpected module body'
+    # Nested modules may retain a nonzero editor viewport origin. Preserve it.
+    signature = bytes([len(name)]) + name.encode('ascii')
+    assert struct.unpack_from('<H', data, offset)[0] == 1 and data[offset+14:offset+14+len(signature)] == signature, 'Unexpected module body'
     header = struct.pack('<HIIH', version, 1, 1, 0) + bytes(3) + b'\1' + bytes(12)
     if version >= 171: header += bytes(4) # empty embedded-font table
     header += bytes(4) # empty image table
@@ -263,6 +285,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--flowstone-root', type=Path, required=True)
     p.add_argument('--probe', type=Path, required=True)
+    p.add_argument('--ruby-probe', type=Path, help='Run unchanged Ruby data/drawing kernels when Ruby is available')
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--scan-library', action='store_true', help='Audit every library entry with a verified matching module body')
     p.add_argument('--report', type=Path, help='Write the scan results, including explicit rejection reasons, as JSON')
@@ -282,6 +305,28 @@ def main():
             archive.writestr('schematic.osm', wrap(data, name, version, offset))
         paths.append(str(path))
     subprocess.run([str(args.probe.resolve()), '--bundled', *paths], check=True)
+    ruby_modules = {}
+    for name, (version, offset, digest) in RUBY_DATA_MODULES.items():
+        data = (args.flowstone_root / 'Modules' / (name + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled Ruby module hash changed: ' + name)
+        path = args.output / (name + ' Ruby data.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', wrap(data, name, version, offset))
+        ruby_modules[name] = str(path)
+    subprocess.run([str(args.probe.resolve()), *ruby_modules.values()], check=True)
+    # A complete unchanged Label submodule exercises native View/color/String inputs 0/1/2.
+    data = (args.flowstone_root / 'Modules' / 'Amp.hom').read_bytes()
+    if hashlib.sha256(data).hexdigest() != 'b7ef92876488c00f1d16bee4d11cf2dbccaeb29904a6bb05ffd9ca2b5645dc28':
+        raise ValueError('Bundled Amp Label hash changed')
+    label = args.output / 'Amp Ruby Label.fsm'
+    with zipfile.ZipFile(label, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr('schematic.osm', wrap(data[:0x614], 'Label', 159, 0x2e8))
+    subprocess.run([str(args.probe.resolve()), str(label)], check=True)
+    if args.ruby_probe:
+        run = subprocess.run([str(args.ruby_probe.resolve()), '--imported-data-ports', str(label), ruby_modules['Midi-CC Encode']],
+                             env={**os.environ, 'QT_QPA_PLATFORM': 'offscreen'})
+        if run.returncode == 77: print('Ruby unavailable; native Ruby import/save/reopen checks still passed')
+        else: run.check_returncode()
     paths = []
     for name, (module, offset, size, digest) in GUI_RECORDS.items():
         data = (args.flowstone_root / 'Modules' / (module + '.hom')).read_bytes()

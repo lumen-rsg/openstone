@@ -88,7 +88,7 @@ void expectError(const QByteArray& input, const char* fragment) {
         check(std::string(e.what()).find(fragment) != std::string::npos, e.what());
         check(!touched && SchematicFile::project(session) == before && session.graph().nodes().front().id == original, "Failed import must leave current project unchanged"); return;
     }
-    throw std::runtime_error("Expected failed import");
+    throw std::runtime_error(std::string("Expected failed import: ")+fragment);
 }
 void importsAndRoundTrips() {
     for (int version : {154, 159, 161, 165, 166, 171, 174, 177}) for (bool deflate : {false, true}) {
@@ -225,32 +225,45 @@ void linkedCodeSources() {
         reopened.enterModule(1); reopened.graph().setDspDraft(1, code); reopened.compileDsp(1); reopened.navigate(0);
         check(std::get<std::string>(reopened.graph().readValue(2)) == code, "Source links remain editable after reopening");
     }
-    Bytes b; header(b, 166); beginModule(b, "Root", 2);
-    const char* code = "def event i,v; output 0,v*2; end";
-    stringBox(b, code);
-    primitive(b, 1110, 1, 4); b.str("old Ruby source"); b.zeros(16); b.b(0); b.d(1); b.d(1);
-    b.w(2); b.str("value"); b.w(2); b.str("result"); b.d(0); b.d(0);
-    b.w(1); wire(b, 166, 0, 0, 1, 0); endModule(b); b.w(0); b.b(0);
-    Session session; check(SchematicFile::importFlowStone(session, zip(b), {}), "Import linked Ruby source without executing it");
-    check(session.graph().nodes()[1].rubyCode->source == code, "Bind Ruby source independently of data port zero");
-    session.graph().setValue(1, std::string("def event i,v; output 0,v*3; end"));
-    check(session.graph().nodes()[1].rubyCode->source.find("v*3") != std::string::npos, "Update stopped Ruby source");
-    session.graph().editRubyPort(2, false, 0, RubyPortEdit::Count, 3);
-    check(session.graph().links()[0].input == 3, "Keep Ruby source input when data ports change");
-    const auto text = session.graph().addNode(PrimitiveKind::String, 0, 0);
-    session.graph().connect({2, text, 0, 1});
-    session.graph().editRubyPort(2, true, 0, RubyPortEdit::Count, 2);
-    check(session.graph().links()[1].output == 2, "Keep Ruby source output when data ports change");
-    check(std::get<std::string>(session.graph().readValue(text)).find("v*3") != std::string::npos, "Read Ruby source after remapping");
-    const auto saved = SchematicFile::project(session); Session reopened;
-    check(SchematicFile::loadProject(reopened, saved, {}) && SchematicFile::project(reopened) == saved, "Reopen linked Ruby source");
-    reopened.graph().setValue(1, std::string(code));
-    check(std::get<std::string>(reopened.graph().readValue(text)) == code, "Update linked Ruby source after reopening");
-    // A Ruby source self loop cannot be resolved from stored text.
-    Bytes c; header(c, 166); beginModule(c, "Root", 1);
-    primitive(c, 1110, 1, 4); c.str("def event i,v; end"); c.zeros(16); c.b(0); c.d(0); c.d(0); c.d(0); c.d(0);
-    c.w(1); wire(c, 166, 0, 0, 0, 0); endModule(c); c.w(0); c.b(0);
-    expectError(zip(c), "Cyclic code-source");
+    Bytes b; header(b, 166); beginModule(b, "Root", 3);
+    const char* code = "def event i,v; output 0,v; end";
+    stringBox(b, "def init; raise 'data is not code'; end");
+    primitive(b, 1110, 1, 4); b.str(code); b.zeros(16); b.b(0); b.d(1); b.d(1);
+    b.w(1); b.str("value"); b.w(1); b.str("result"); b.d(0); b.d(0);
+    stringBox(b, "sink");
+    b.w(2); wire(b, 166, 0, 0, 1, 0); wire(b, 166, 1, 0, 2, 0); endModule(b); b.w(0); b.b(0);
+    Session session; check(SchematicFile::importFlowStone(session, zip(b), {}), "Import native Ruby data connectors without executing code");
+    auto& graph=session.graph();
+    check(graph.nodes()[1].rubyCode->source==code && graph.links()[0].input==0 && graph.links()[1].output==0,
+          "Native Ruby String input/output zero are data connectors, independent of stored source");
+    graph.setValue(1,std::string("different data"));
+    check(graph.nodes()[1].rubyCode->source==code,"Changing native data input zero never edits Ruby code");
+    // OpenStone's additional Source ports remain available after native import.
+    const auto source=graph.addNode(PrimitiveKind::String,0,0,std::string(code));
+    graph.connect({source,2,1});
+    graph.editRubyPort(2,false,0,RubyPortEdit::Count,3);
+    check(graph.links()[0].input==0 && graph.links()[2].input==3,"Resizing Ruby data inputs moves only the added Source link");
+    const auto text=graph.addNode(PrimitiveKind::String,0,0);
+    graph.connect({2,text,0,1});
+    graph.editRubyPort(2,true,0,RubyPortEdit::Count,2);
+    check(graph.links()[1].output==0 && graph.links()[3].output==2,"Resizing Ruby outputs preserves native data zero and moves Source");
+    check(graph.readValue(text)==green::Value{std::string(code)},"Additional source output reads the unchanged Ruby program");
+    const auto saved=SchematicFile::project(session); QTemporaryDir dir; const auto path=dir.filePath("ruby-data-ports.ostone");
+    SchematicFile::write(path,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(path),{});
+    check(SchematicFile::project(reopened)==saved,"Native data links and added Source links survive disk save/reopen");
+    const std::string next="def event i,v; output 0,v.upcase; end";
+    reopened.graph().setValue(source,next);
+    check(reopened.graph().readValue(text)==green::Value{next} && reopened.graph().nodes()[1].rubyCode->source==next,
+          "OpenStone's explicitly connected source input still updates code after reopening");
+    // The native file cannot address OpenStone's additional synthetic source sockets.
+    Bytes c; header(c,166); beginModule(c,"Root",2);
+    primitive(c,1110,1,4); c.str("def event i,v; end"); c.zeros(16); c.b(0); c.d(0); c.d(0); c.d(0); c.d(0);
+    stringBox(c,"data"); c.w(1); wire(c,166,1,0,0,0); endModule(c); c.w(0); c.b(0);
+    expectError(zip(c),"connector index");
+    auto bad=b; Bytes link; wire(link,166,0,0,1,0); const auto at=bad.lastIndexOf(link); check(at>0,"Locate native Ruby data link");
+    bad[at+6]=1; expectError(zip(bad),"connector index");
+    bad=b; link.clear(); wire(link,166,1,0,2,0); const auto out=bad.lastIndexOf(link); check(out>0,"Locate native Ruby data output");
+    bad[out+3]=1; expectError(zip(bad),"connector index");
 }
 Bytes compiledCache() {
     Bytes c; c.b(2); c.b(1); c.b(39); c.str("in"); c.b(1); c.b(39); c.str("out");

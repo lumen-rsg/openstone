@@ -86,6 +86,21 @@ class MIDI
   end
 end
 
+class Midi < MIDI
+  # FlowStone's Midi constructor uses the channel nibble, from zero to fifteen.
+  # Keep the existing MIDI API's one-based channel convention intact.
+  def initialize(*fields)
+    if fields.size == 4
+      channel = fields[1]
+      unless channel.is_a?(Integer) && channel.between?(0, 15)
+        raise ArgumentError, "Expected a MIDI channel from 0 through 15"
+      end
+      fields[1] = channel + 1
+    end
+    super(*fields)
+  end
+end
+
 class Color
   attr_reader :argb
 
