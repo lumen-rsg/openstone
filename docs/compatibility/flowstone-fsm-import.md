@@ -61,6 +61,8 @@ are not silently replaced with empty modules or disconnected nodes.
   conversion. A connected native clipboard-Paste input rejects explicitly.
 - File Dialog (103), with its native connector order, default-Open policy and
   filter syntax. Selection and cancellation use OpenStone's host-dialog service.
+- Button / Trigger Button (17), mapped to OpenStone's Trigger control, with its
+  caption, schematic position and outgoing trigger links.
 - Routed links retain their functional endpoints. Their short-coordinate routing
   points are bounded and consumed; OpenStone supplies the visible link geometry.
 - Legacy Stream Add, Subtract, Multiply, Divide, Min and Max IDs; Delay1 (30),
@@ -245,6 +247,28 @@ The UI uses OpenStone's host file picker. FlowStone's Windows-specific folder,
 filename and inferred-extension suggestions are not emulated; explicit Folder,
 Name and Ext inputs are forwarded to the host. Headless tests simulate picker
 responses and do not establish visual parity with a running Windows dialog.
+
+## Button conversion
+
+Component 17 is native class `ButtonTrigger`, titled Trigger Button. It has no
+inputs and one Trigger output at index 0. It maps to OpenStone's existing Trigger
+node: activating its Fire button emits one pulse, including through module
+boundaries and to multiple receivers. Importing, connecting, saving and reopening
+the node do not activate it. Its caption is the common node-header label; its
+schematic position is retained.
+
+The component-specific record contains the standard property-editor header:
+one Boolean flag, a Boolean indicating an optional connector-box layout, and
+that layout when present. The layout has a DWORD box count, 24 bytes per box,
+version-157+ box flags/optional anchor reference, then a DWORD order count and
+WORD order entries. There is no extra pressed state, value or per-button cache
+after this header. The native Button loader delegates directly to the property
+base loader for all supported schematic versions.
+
+As with imported value-box property layouts, FlowStone's custom property-box
+appearance is consumed with bounds checks and reported as a conversion limit.
+Converted buttons use OpenStone's existing editor control; this pass does not
+recreate the native property-panel widget or its Windows styling.
 
 ## Native routing conversion
 
@@ -637,6 +661,10 @@ Useful serializer addresses in that build (image base `0x140000000`):
 | File Dialog specific load/save (no payload) | `0x14000d180` |
 | File Dialog Open / result dispatch | `0x14033fa70` |
 | File Dialog filter expansion | `0x14033f420` |
+| Button (17) factory / constructor | `0x1400d4930` / `0x14032dfd0` |
+| Button load / inherited property save | `0x14032e1c0` / `0x1403bfa10` |
+| Button property-base loader | `0x1403bf950` |
+| Button activation dispatch | `0x14032e1d0` |
 | Preset Float factory / constructor | `0x1400d99f0` / `0x140092ff0` |
 | Preset Float load / save | `0x140093f10` / `0x140094460` |
 | Preset Float input / init callbacks | `0x140093cd0` / `0x1400931b0` |
@@ -1084,10 +1112,32 @@ request parameters, Path-before-OK ordering, Cancel, stale responses and saving
 with a pending request. Native compatibility flags survive reopening; malformed
 flags, truncated headers and invalid connector indices reject atomically.
 
-The latest inventory remains **24/124** complete imports/save-reopens. Detuner
-and Multi LFO now pass File Dialog and reach Button (17). The tests above use
+The File Dialog inventory remained **24/124** complete imports/save-reopens. Detuner
+and Multi LFO passed File Dialog and reached Button (17). The tests above use
 unchanged component records in authored benches; their complete enclosing Knob
 and Bitmap wrapper modules remain unsupported.
+
+The Button pass verifies four unchanged native records: Multi LFO Speed
+(`0x31ca`, 62 bytes), Multi LFO Depth (`0x599d`, 62 bytes), Detuner (`0x440f`,
+62 bytes), and Switch (`0x8c0`, 65 bytes). The first three retain the caption
+`Load Bitmap...`; Switch retains `Load Animation...` and its different property
+flag. Each record sends exactly one pulse per activation to both connected
+receivers before and after disk save/reopen.
+
+Three additional authored benches retain the native Button, File Dialog and
+Bitmap records and reproduce their original activation, Path and Load links.
+Clicking Button opens the correct nested File Dialog, successful selection
+loads one bitmap, and Cancel preserves existing pixels. The complete chain and
+loaded image survive disk save/reopen, including when a dialog was pending at
+save time, without replaying a click or reading the source file on reopening.
+Only module hashes and record offsets are public; vendor record/image bytes
+stay in the externally supplied reference corpus.
+
+Authored Button records cover versions 154, 156, 157, 159, 160, 166, 171 and 177,
+both property flags, present/absent connector layouts, anchor metadata, module
+boundaries, trigger fan-out, captions and grid positions. A following Int record
+checks byte alignment. Truncation at each header/layout byte, invalid Boolean
+flags, excessive box counts and invalid input/output indices reject atomically.
 
 Independent GUI fixtures exercise all four panel IDs across versions 154, 155,
 170 and 177; actual text drawing commands; anchor metadata; live legacy size and

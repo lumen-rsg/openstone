@@ -168,6 +168,12 @@ FILE_DIALOG_RECORDS = {
     'Detuner Bitmap': 0x4408,
 }
 
+BUTTON_RECORDS = {
+    'Multi LFO Speed Button': ('Multi LFO', 0x31ca, 62, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
+    'Multi LFO Depth Button': ('Multi LFO', 0x599d, 62, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
+    'Detuner Button': ('Detuner', 0x440f, 62, 'bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50'),
+    'Switch Animation Button': ('Switch', 0x8c0, 65, '49be7706ea2ce945bf37c5948bb601df4d0387abda15601c0c3ce384b7c6d0af'),
+}
 
 def gui_record_document(record, name, version, *, node_count=1, links=()):
     header = struct.pack('<HIIH', version, 1, 1, 0) + bytes(3) + b'\1' + bytes(12)
@@ -459,6 +465,33 @@ def main():
         pickers.append(str(path))
     subprocess.run([str(args.probe.resolve()), '--file-dialog-records', *dialogs], check=True)
     subprocess.run([str(args.probe.resolve()), '--bitmap-file-dialogs', *pickers], check=True)
+
+    buttons, pickers = [], []
+    for name, (source, offset, size, digest) in BUTTON_RECORDS.items():
+        data = (args.flowstone_root / 'Modules' / (source + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled Button module hash changed: ' + source)
+        record = data[offset:offset+size]
+        if len(record) != size or struct.unpack_from('<H', record)[0] != 17:
+            raise ValueError('Unexpected native Button record: ' + name)
+        version = struct.unpack_from('<H', data)[0]
+        path = args.output / (name + '.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', gui_record_document(record, name, version))
+        buttons.append(str(path))
+        bitmap_name = name.replace('Button', 'Bitmap')
+        if bitmap_name not in BITMAP_RECORDS: continue
+        _, bitmap_offset, bitmap_size, _ = BITMAP_RECORDS[bitmap_name]
+        dialog_offset = FILE_DIALOG_RECORDS[bitmap_name]
+        records = record + data[dialog_offset:dialog_offset+7] + data[bitmap_offset:bitmap_offset+bitmap_size]
+        # Unchanged native records, with the original Button->Open, Path->Path,
+        # and OK->Load connections reproduced in an authored three-node bench.
+        path = args.output / (name + ' picker.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', gui_record_document(records, name + ' picker', version,
+                              node_count=3, links=[(0,0,1,0),(1,0,2,0),(1,1,2,1)]))
+        pickers.append(str(path))
+    subprocess.run([str(args.probe.resolve()), '--button-records', *buttons], check=True)
+    subprocess.run([str(args.probe.resolve()), '--button-bitmap-pickers', *pickers], check=True)
 
     records, modules = [], []
     for source, (start, end, offset, digest) in MIDI_CC_MODULES.items():

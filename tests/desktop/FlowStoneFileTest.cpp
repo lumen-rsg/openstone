@@ -1037,6 +1037,107 @@ void nativeBitmapFileDialog(const QString& path) {
           "Reopening preserves loaded pixels and functional dialog wiring without external file reads"); verify(reopened.graph());
     std::cout<<path.toStdString()<<": native File Dialog/Bitmap records, selection/load ordering and disk save/reopen passed\n";
 }
+void buttonLayout(Bytes& b, int version) {
+    b.d(2);
+    for (int i=0;i<2;++i) {
+        b.f(12+i); b.f(0); b.d(14); b.d(4); b.f(10); b.f(2);
+        if (version>=157) { b.b(0); b.b(0); b.b(0); b.b(0); b.b(i); if (i) { b.f(0); b.f(0); b.f(10); b.f(2); } }
+    }
+    b.d(2); b.w(1); b.w(0);
+}
+Bytes buttonDocument(int version, bool enabled, bool layout, bool boundary = true) {
+    Bytes b; header(b,version); beginModule(b,"Root",1); beginModule(b,"Button",boundary ? 3 : 2);
+    primitive(b,17,12,14,"Load Bitmap..."); b.b(enabled); b.b(layout); if (layout) buttonLayout(b,version);
+    primitive(b,29,40,20,"Sentinel"); b.f(8); b.b(0); b.b(0); b.d(123);
+    if (boundary) { primitive(b,139,50,10); b.d(9); b.b(0); b.str("Click"); }
+    b.w(boundary ? 1 : 0); if (boundary) wire(b,version,0,0,2,0); endModule(b);
+    b.w(0); endModule(b); b.w(0); b.b(0); return b;
+}
+void exerciseButton(Schematic& root, int first, int second, std::optional<int> outer = {}) {
+    using green::Value;
+    auto& g=*root.module(1); const auto before=g.inspectOutput(1).triggers;
+    const auto a=std::get<std::int32_t>(g.readValue(first)), b=std::get<std::int32_t>(g.readValue(second));
+    const auto c=outer ? std::get<std::int32_t>(root.readValue(*outer)) : 0;
+    for (int press=1;press<=3;++press) {
+        g.fireTrigger(1); // The same entry point used by the editor's Fire button.
+        check(g.inspectOutput(1).triggers==before+press && g.readValue(first)==Value{a+press} && g.readValue(second)==Value{b+press},
+              "Each Button activation emits exactly one Trigger to every connected receiver");
+        if (outer) check(root.readValue(*outer)==Value{c+press},"Button pulses cross their native module-output boundary");
+    }
+}
+void buttonRoundTrip(const QByteArray& archive, bool boundary, const std::string& label) {
+    using enum PrimitiveKind;
+    const auto decoded=FlowStoneFile::decode(archive); const auto& button=decoded.root.children[0].children[0];
+    check(button.nativeTag==17 && button.node.kind==Trigger && button.node.label==label && button.node.inputPorts().empty() &&
+          button.node.outputPorts().size()==1 && button.node.outputPorts()[0].type==green::Type::Trigger,
+          "Native Button maps to the existing Trigger primitive with its caption and fixed connector contract");
+    Session s; SchematicFile::importFlowStone(s,archive,{}); auto& g=*s.graph().module(1);
+    const auto first=g.addNode(TriggerCounter,0,0), second=g.addNode(TriggerCounter,0,0);
+    g.connect({1,first,0},LinkNotification::Silent); g.connect({1,second,0},LinkNotification::Silent);
+    std::optional<int> outer;
+    if (boundary) { outer=s.graph().addNode(TriggerCounter,0,0); s.graph().connect({1,*outer,0},LinkNotification::Silent); }
+    check(g.inspectOutput(1).triggers==0 && !s.graph().pendingAppDialog(),"Loading and wiring a Button does not activate it");
+    exerciseButton(s.graph(),first,second,outer);
+    const auto saved=SchematicFile::project(s); QTemporaryDir dir; const auto target=dir.filePath("button.ostone"); SchematicFile::write(target,saved);
+    Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(target),{});
+    check(SchematicFile::project(reopened)==saved && reopened.graph().module(1)->nodes()[0].label==label &&
+          reopened.graph().module(1)->inspectOutput(1).triggers==0,"Button caption, links and position persist without replaying activations after disk save/reopen");
+    exerciseButton(reopened.graph(),first,second,outer);
+}
+void importedButtons() {
+    for (int version : {154,156,157,159,160,166,171,177}) for (bool enabled : {false,true}) for (bool layout : {false,true}) {
+        const auto raw=buttonDocument(version,enabled,layout); buttonRoundTrip(zip(raw),true,"Load Bitmap...");
+        const auto decoded=FlowStoneFile::decode(zip(raw));
+        check(decoded.root.children[0].children[0].node.x==12*16 && decoded.root.children[0].children[0].node.y==14*16 &&
+              decoded.root.children[0].children[1].node.localValue==green::Value{std::int32_t{123}},
+              "Button coordinates and the following value record remain aligned for every native property-header variant");
+        Bytes prefix; primitive(prefix,17,12,14,"Load Bitmap..."); const auto at=raw.indexOf(prefix), payload=at+prefix.size();
+        check(at>0,"Locate Button record");
+        const auto end=payload+2+(layout ? [&] { Bytes boxes; buttonLayout(boxes,version); return boxes.size(); }() : 0);
+        for (int cut=at;cut<end;++cut) expectError(zip(raw.left(cut)),"Truncated");
+        for (int flag : {0,1}) { auto bad=raw; bad[payload+flag]=2; expectError(zip(bad),"Boolean"); }
+        if (layout) {
+            auto bad=raw; qToLittleEndian<quint32>(4097,bad.data()+payload+2); expectError(zip(bad),"record count");
+            if (version>=157) { bad=raw; bad[payload+2+4+24]=2; expectError(zip(bad),"Boolean"); }
+        }
+        Bytes link; wire(link,version,0,0,2,0); const auto wireAt=raw.indexOf(link,end); check(wireAt>0,"Locate Button output wire");
+        auto bad=raw; bad[wireAt+3]=1; expectError(zip(bad),"connector index");
+        bad=raw; qToLittleEndian<quint16>(0,bad.data()+wireAt+4); expectError(zip(bad),"connector index"); // Button has no input zero.
+    }
+}
+void nativeButtonRecord(const QString& path) {
+    buttonRoundTrip(SchematicFile::read(path),false,path.contains("Switch") ? "Load Animation..." : "Load Bitmap...");
+    std::cout<<path.toStdString()<<": unchanged native Button, per-click pulses and disk save/reopen passed\n";
+}
+void nativeButtonBitmapPicker(const QString& path) {
+    using enum PrimitiveKind;
+    int loads=0; const yellow::Bitmap replacement{1,2,{1,2,3,4,5,6,7,8}};
+    const auto loader=[&](std::string_view selected) { check(selected=="/chosen/knob.png","Button picker passes the selected Path before Bitmap Load"); ++loads; return replacement; };
+    Session s(loader); SchematicFile::importFlowStone(s,SchematicFile::read(path),{}); auto& g=*s.graph().module(1);
+    check(g.nodes().size()==3 && g.nodes()[0].kind==Trigger && g.nodes()[1].kind==FileDialog && g.nodes()[2].kind==Bitmap &&
+          g.links().size()==3 && g.nodes()[0].label=="Load Bitmap...","Keep the three native Button/Dialog/Bitmap records and their functional links");
+    check(!s.graph().pendingAppDialog() && loads==0,"Importing the picker does not activate the Button or read a file"); bitmapValue(g,3,32,32);
+    const auto verify=[&](Schematic& root) {
+        auto& owner=*root.module(1); const auto before=loads;
+        const auto previous=std::get<yellow::Bitmap>(owner.readValue(3));
+        owner.fireTrigger(1); const auto request=*root.pendingAppDialog();
+        check(request.node==2 && request.ownerPath==std::vector{1} && request.type==1,"The native Button opens its connected File Dialog in default Open mode");
+        check(root.finishAppDialog(request.token,false) && loads==before && std::get<yellow::Bitmap>(owner.readValue(3))==previous,
+              "Cancel leaves the Bitmap unchanged");
+        owner.fireTrigger(1);
+        check(root.finishAppDialog(root.pendingAppDialog()->token,true,"/chosen/knob.png") && loads==before+1 &&
+              bitmapValue(owner,3,1,2)==replacement,"One Button activation and selection load the chosen bitmap exactly once");
+        owner.fireTrigger(1); root.finishAppDialog(root.pendingAppDialog()->token,false);
+        check(loads==before+1 && std::get<yellow::Bitmap>(owner.readValue(3))==replacement,"A later cancelled selection preserves loaded pixels");
+    };
+    verify(s.graph()); g.fireTrigger(1); // Save with a pending request to check that it is not replayed.
+    const auto saved=SchematicFile::project(s); QTemporaryDir dir; const auto target=dir.filePath("button-picker.ostone"); SchematicFile::write(target,saved);
+    Session reopened(loader); SchematicFile::loadProject(reopened,SchematicFile::read(target),{});
+    check(SchematicFile::project(reopened)==saved && !reopened.graph().pendingAppDialog() && loads==1 &&
+          bitmapValue(*reopened.graph().module(1),3,1,2)==replacement,"Button picker, loaded pixels and wiring survive disk save/reopen without a click or file read");
+    verify(reopened.graph());
+    std::cout<<path.toStdString()<<": native Button/Dialog/Bitmap chain, activation and disk save/reopen passed\n";
+}
 void brushPayload(Bytes& b, int version, int kind, bool ellipse = false) {
     if (version < 167) { b.f(.1f); b.d(0xff000000); b.d(0); return; }
     b.d(kind);
@@ -3415,6 +3516,10 @@ int main(int argc, char** argv) {
     try {
         if (argc > 1 && QByteArray(argv[1]) == "--shape-records") {
             for(int i=2;i<argc;++i)nativeShapeRecord(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--button-records") {
+            check(argc>2,"Native Button records required"); for(int i=2;i<argc;++i) nativeButtonRecord(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--button-bitmap-pickers") {
+            check(argc>2,"Native Button picker records required"); for(int i=2;i<argc;++i) nativeButtonBitmapPicker(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--file-dialog-records") {
             check(argc>2,"Native File Dialog records required"); for(int i=2;i<argc;++i) nativeFileDialogRecord(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--bitmap-file-dialogs") {
@@ -3491,7 +3596,7 @@ int main(int argc, char** argv) {
                 Session s; SchematicFile::importFlowStone(s, SchematicFile::read(QString::fromLocal8Bit(argv[i])), {});
                 Session reopened; SchematicFile::loadProject(reopened, SchematicFile::project(s), {});
             }
-        } else { importsAndRoundTrips(); rejectsInvalidFiles(); codePorts(); valuesAndRuby(); linkedCodeSources(); compiledCaches(); valueLayouts(); propertyPanelLayouts(); genericMathRecords(); floatDeZipperRecord(); importedPanels(); legacyPanelControls(); inheritedViews(); propertyWireless(); guiDrawing(); guiSelectorAndRoutedLinks(); penAndFontProperties(); stringFormatsAndBrushes(); customRadialPaths(); importedShapes(); importedDrawingControls(); importedColorConversions(); importedViewCaches(); importedComparisons(); importedRouting(); importedStateRecords(); importedAudioRecords(); importedGeneratorRecords(); importedDropLists(); importedPresets(); importedRouters(); importedMidiCc(); importedBitmaps(); importedFileDialogs(); heldClose(); }
+        } else { importsAndRoundTrips(); rejectsInvalidFiles(); codePorts(); valuesAndRuby(); linkedCodeSources(); compiledCaches(); valueLayouts(); propertyPanelLayouts(); genericMathRecords(); floatDeZipperRecord(); importedPanels(); legacyPanelControls(); inheritedViews(); propertyWireless(); guiDrawing(); guiSelectorAndRoutedLinks(); penAndFontProperties(); stringFormatsAndBrushes(); customRadialPaths(); importedShapes(); importedDrawingControls(); importedColorConversions(); importedViewCaches(); importedComparisons(); importedRouting(); importedStateRecords(); importedAudioRecords(); importedGeneratorRecords(); importedDropLists(); importedPresets(); importedRouters(); importedMidiCc(); importedBitmaps(); importedFileDialogs(); importedButtons(); heldClose(); }
         std::cout << "FlowStone import tests passed\n"; return 0;
     } catch (const std::exception& e) { std::cerr << e.what() << '\n'; return 1; }
 }
