@@ -103,6 +103,8 @@ are not silently replaced with empty modules or disconnected nodes.
   existing redraw gate; complete bundled `RedrawLimiter` modules are supported.
 - Ticker 25 (181), mapped to a timer-driven Tick at 25 TPS. Native records have
   no inputs, one Trigger output and no payload beyond the common header.
+- String Array to String (573), with fixed String Array/Separator inputs and a
+  String output. It appends entries with the supplied separator between them.
 - MIDI Control Change (166), with MIDI/CC inputs and Integer Value/Trigger
   Changed outputs. The record has no payload beyond its common node header.
   Its selected controller comes from the live CC input; incoming MIDI state is
@@ -363,6 +365,15 @@ wakes that skip missed pulses, and display frames that do not fire the timer.
 Saving/reopening preserves the rate and links, retaining no old deadline or
 pending event. Exact Windows message-loop timing is not established by these
 tests.
+
+## String Array to String conversion
+
+Component **573** (`StringArrayToString2`) has no specific saved payload. Its
+native getter reads String Array input 0 and String separator input 1 and joins
+the entries; either input notification propagates to its String output. It maps
+directly to OpenStone's String Array to String primitive. Empty arrays produce
+an empty String, and empty entries remain present between separators. Native
+labels, positions and links retain their common-header layout.
 
 ## Native routing conversion
 
@@ -725,6 +736,7 @@ Useful serializer addresses in that build (image base `0x140000000`):
 | Boolean Not value pull / input notification | `0x1403285f0` / `0x1402e3a50` |
 | Ticker 25 (181) factory / primary vtable | `0x1400dd4a0` / `0x1404d9210` |
 | Ticker 25 timer registration / no-payload serializers | `0x1400e2bc0` / `0x14000d180` |
+| String Array to String (573) factory / String getter | `0x1400dca00` / `0x14039b830` |
 | Boolean comparison factory / loader | `0x1400d2a10` / `0x1403036b0` |
 | Boolean comparison predicate / Float Array helper | `0x1403036d0` / `0x1403024d0` |
 | Trigger comparison factory / predicate | `0x1400d2a70` / `0x140304d40` |
@@ -1363,6 +1375,15 @@ following-record alignment, invalid native connector indices, truncated headers,
 40 ms trigger timing and disk save/reopen. The complete-module scan remains
 **40/124**: the Mono/Packed readouts now advance to String Array to String (573), while
 Scope - Dual advances to component 553.
+
+The String Array to String pass adds unchanged records from Mono Readout
+(`0xb3f`), Poly Readout (`0xb38`) and Meter - Vintage (`0x1eb`). Headless tests
+exercise empty arrays and entries, Unicode, empty and CR/LF separators,
+repeated notifications, strict connector bounds and following-record alignment
+across versions 154, 159, 166, 171, 174 and 177. The converted graph's String
+array storage, separator and links survive disk save/reopen. The complete-module
+scan remains **40/124** and advances the affected Font/Fonts submodules to
+Special Characters (249).
 
 Independent GUI fixtures exercise all four panel IDs across versions 154, 155,
 170 and 177; actual text drawing commands; anchor metadata; live legacy size and

@@ -630,6 +630,7 @@ public:
                 break;
             case 429: n.kind = FromDecibel; genericMath(n); break;
             case 256: n.kind = Not; break; // Fixed Boolean ports; no primitive-specific state.
+            case 573: n.kind = StringArrayToString; break;
             case 1053:
                 n.kind = SampleAndHold; genericMath(n); n.flowStoneSampleAndHold = true;
                 if (!n.typeOverride) break;

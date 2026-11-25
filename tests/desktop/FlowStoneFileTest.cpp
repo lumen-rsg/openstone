@@ -3136,6 +3136,63 @@ void nativeTicker25(const QString& path) {
     std::cout<<path.toStdString()<<": unchanged Ticker 25 record, timing, notifications and disk save/reopen passed\n";
 }
 
+Bytes stringJoinDocument(int version,int badPort=0) {
+    Bytes b; header(b,version); beginModule(b,"Root",1); beginModule(b,"String join",2);
+    primitive(b,573,2,3,"Join");
+    primitive(b,29,10,3,"Sentinel"); b.f(8); b.b(0); b.b(0); b.d(123);
+    b.w(badPort?1:0);
+    if(badPort==1) wire(b,version,1,0,0,2);
+    if(badPort==2) wire(b,version,0,1,1,0);
+    endModule(b); b.w(0); endModule(b); b.w(0); b.b(0); return b;
+}
+void stringJoinRoundTrip(const QByteArray& archive) {
+    using enum PrimitiveKind;
+    using green::Value;
+    Session s; SchematicFile::importFlowStone(s,archive,{}); auto& g=*s.graph().module(1);
+    check(g.nodes()[0].kind==StringArrayToString && g.inputType(1,0)==green::Type::StringArray &&
+          g.inputType(1,1)==green::Type::String && g.outputType(1)==green::Type::String &&
+          g.readValue(1)==Value{std::string{}} && g.inspectOutput(1).triggers==0,
+          "Native String Array to String has Array/Sep inputs and reads an empty unconnected array without firing");
+    const auto array=g.addNode(Array,0,0), sep=g.addNode(String,0,0,std::string("|")), pulse=g.addNode(Trigger,0,0);
+    const auto element=g.addNode(String,0,0), index=g.addNode(Int,0,0), clear=g.addNode(Trigger,0,0), insert=g.addNode(Trigger,0,0);
+    g.connect({array,1,0},LinkNotification::Silent); g.connect({sep,1,1},LinkNotification::Silent);
+    g.connect({pulse,sep,0},LinkNotification::Silent);
+    g.connect({element,array,0},LinkNotification::Silent); g.connect({index,array,1},LinkNotification::Silent);
+    g.connect({clear,array,3},LinkNotification::Silent); g.connect({insert,array,5},LinkNotification::Silent);
+    const auto verify=[&](Schematic& owner) {
+        const auto send=[&](green::StringArray values,std::string separator,std::string expected) {
+            owner.fireTrigger(clear);
+            for(std::size_t i=0;i<values.size();++i) {
+                owner.setValue(index,std::int32_t(i)); owner.setValue(element,values[i]); owner.fireTrigger(insert);
+            }
+            owner.setValue(sep,std::move(separator));
+            check(owner.readValue(1)==Value{expected},"Joining retains empty entries, Unicode and the exact separator between entries");
+            const auto before=owner.inspectOutput(1).triggers; owner.fireTrigger(pulse); owner.fireTrigger(pulse);
+            check(owner.inspectOutput(1).triggers==before+2 && owner.readValue(1)==Value{expected},
+                  "Every separator notification republishes the joined value, including repeated equal values");
+        };
+        send({},"|",""); send({""},"|",""); send({"a","","Ω"},"|","a||Ω");
+        send({"a","","Ω"},"","aΩ"); send({"a","","Ω"},"\r\n","a\r\n\r\nΩ");
+    };
+    verify(g); const auto saved=SchematicFile::project(s); QTemporaryDir dir; const auto path=dir.filePath("string-join.ostone");
+    SchematicFile::write(path,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(path),{});
+    check(SchematicFile::project(reopened)==saved,"Native String Array to String and its arrays, separator and links survive disk save/reopen");
+    verify(*reopened.graph().module(1));
+}
+void importedStringJoin() {
+    for(int version : {154,159,166,171,174,177}) {
+        const auto raw=stringJoinDocument(version); stringJoinRoundTrip(zip(raw)); const auto parsed=FlowStoneFile::decode(zip(raw));
+        check(parsed.root.children[0].children[1].node.localValue==green::Value{std::int32_t{123}},"Payload-free join preserves following records");
+        Bytes prefix; primitive(prefix,573,2,3,"Join"); const auto at=raw.indexOf(prefix); check(at>0,"Locate String Array to String header");
+        for(int cut=0;cut<prefix.size();++cut) expectError(zip(raw.left(at+cut)),"Truncated");
+        expectError(zip(stringJoinDocument(version,1)),"connector index"); expectError(zip(stringJoinDocument(version,2)),"connector index");
+    }
+}
+void nativeStringJoin(const QString& path) {
+    stringJoinRoundTrip(SchematicFile::read(path));
+    std::cout<<path.toStdString()<<": unchanged String Array to String, separator events and disk save/reopen passed\n";
+}
+
 Bytes booleanNotDocument(int version) {
     Bytes b; header(b,version); beginModule(b,"Root",1); beginModule(b,"Boolean inversion",6);
     primitive(b,138,0,3); b.d(15); b.b(0); b.str("Value");
@@ -3959,6 +4016,8 @@ int main(int argc, char** argv) {
             check(argc>2,"Native Boolean Not records required"); for(int i=2;i<argc;++i) nativeBooleanNotRecord(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--ticker25-records") {
             check(argc>2,"Native Ticker 25 records required"); for(int i=2;i<argc;++i) nativeTicker25(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--string-join-records") {
+            check(argc>2,"Native String Array to String records required"); for(int i=2;i<argc;++i) nativeStringJoin(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--boolean-not-presets") {
             check(argc>2,"Native Preset modules required"); for(int i=2;i<argc;++i) nativeBooleanNotPreset(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--after-duplicate-records") {
@@ -4045,7 +4104,7 @@ int main(int argc, char** argv) {
                 Session s; SchematicFile::importFlowStone(s, SchematicFile::read(QString::fromLocal8Bit(argv[i])), {});
                 Session reopened; SchematicFile::loadProject(reopened, SchematicFile::project(s), {});
             }
-        } else { importsAndRoundTrips(); rejectsInvalidFiles(); codePorts(); valuesAndRuby(); linkedCodeSources(); compiledCaches(); valueLayouts(); propertyPanelLayouts(); genericMathRecords(); floatDeZipperRecord(); importedPanels(); legacyPanelControls(); inheritedViews(); propertyWireless(); guiDrawing(); guiSelectorAndRoutedLinks(); penAndFontProperties(); stringFormatsAndBrushes(); customRadialPaths(); importedShapes(); importedDrawingControls(); importedColorConversions(); importedViewCaches(); importedComparisons(); importedRouting(); importedStateRecords(); importedAudioRecords(); importedGeneratorRecords(); importedDropLists(); importedPresets(); importedRouters(); importedMidiCc(); importedBitmaps(); importedFileDialogs(); importedButtons(); importedAfterDuplicate(); importedHeldValues(); importedRedrawLimiters(); importedBooleanNot(); importedTicker25(); heldClose(); }
+        } else { importsAndRoundTrips(); rejectsInvalidFiles(); codePorts(); valuesAndRuby(); linkedCodeSources(); compiledCaches(); valueLayouts(); propertyPanelLayouts(); genericMathRecords(); floatDeZipperRecord(); importedPanels(); legacyPanelControls(); inheritedViews(); propertyWireless(); guiDrawing(); guiSelectorAndRoutedLinks(); penAndFontProperties(); stringFormatsAndBrushes(); customRadialPaths(); importedShapes(); importedDrawingControls(); importedColorConversions(); importedViewCaches(); importedComparisons(); importedRouting(); importedStateRecords(); importedAudioRecords(); importedGeneratorRecords(); importedDropLists(); importedPresets(); importedRouters(); importedMidiCc(); importedBitmaps(); importedFileDialogs(); importedButtons(); importedAfterDuplicate(); importedHeldValues(); importedRedrawLimiters(); importedBooleanNot(); importedTicker25(); importedStringJoin(); heldClose(); }
         std::cout << "FlowStone import tests passed\n"; return 0;
     } catch (const std::exception& e) { std::cerr << e.what() << '\n'; return 1; }
 }

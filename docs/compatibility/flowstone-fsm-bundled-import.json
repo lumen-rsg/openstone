@@ -480,7 +480,7 @@
       "module_offset": "0xb9",
       "sha256": "e6f06e718145ecb2e18abfd9cbb65d948fb4b72f8a27486cf19b0e5d2c8e5fd8",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 573 (0x23d) at byte 0x171 (Root/Root/Meter - Vintage/Label/Font/Fonts)"
+      "detail": "FlowStone import: Unsupported component ID 249 (0xf9) at byte 0x178 (Root/Root/Meter - Vintage/Label/Font/Fonts)"
     },
     {
       "module": "Meter - dB",
@@ -504,7 +504,7 @@
       "module_offset": "0x38",
       "sha256": "c6e6fc4f5bd7d949af6cb05d85fe4be551a414d23c49a9575166dc3f16f1de3a",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 573 (0x23d) at byte 0xb91 (Root/Root/Mono Bool Readout/Display/Font/Fonts)"
+      "detail": "FlowStone import: Unsupported component ID 249 (0xf9) at byte 0xb98 (Root/Root/Mono Bool Readout/Display/Font/Fonts)"
     },
     {
       "module": "Mono Double Readout",
@@ -512,7 +512,7 @@
       "module_offset": "0x3a",
       "sha256": "6321fb593192e9ce8247a164eed0d7c029c52b4851db3b04a8ec7a557bb43ee2",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 573 (0x23d) at byte 0xb93 (Root/Root/Mono Double Readout/Display/Font/Fonts)"
+      "detail": "FlowStone import: Unsupported component ID 249 (0xf9) at byte 0xb9a (Root/Root/Mono Double Readout/Display/Font/Fonts)"
     },
     {
       "module": "Mono Readout",
@@ -520,7 +520,7 @@
       "module_offset": "0x33",
       "sha256": "c034a295b99d9eec5f57bb7877d34ec0a078105223252d4a0116cf788bdc8994",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 573 (0x23d) at byte 0xb8c (Root/Root/Mono Readout/Display/Font/Fonts)"
+      "detail": "FlowStone import: Unsupported component ID 249 (0xf9) at byte 0xb93 (Root/Root/Mono Readout/Display/Font/Fonts)"
     },
     {
       "module": "Mono Stream FFT Display",
@@ -616,7 +616,7 @@
       "module_offset": "0x41",
       "sha256": "a38d30ea562d63d8ebe3b03af0d0fa60df0472f29e4cfa1e8d82a49c3787f8da",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 573 (0x23d) at byte 0xba6 (Root/Root/Packed Mono Double Readout/Display/Font/Fonts)"
+      "detail": "FlowStone import: Unsupported component ID 249 (0xf9) at byte 0xbad (Root/Root/Packed Mono Double Readout/Display/Font/Fonts)"
     },
     {
       "module": "Packed Mono Readout",
@@ -624,7 +624,7 @@
       "module_offset": "0x3a",
       "sha256": "b13d519b693f7513a5ceb11ce5933ecfb738d6aa8b78cca0c3a5a6949b735ce4",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 573 (0x23d) at byte 0xb9f (Root/Root/Packed Mono Readout/Display/Font/Fonts)"
+      "detail": "FlowStone import: Unsupported component ID 249 (0xf9) at byte 0xba6 (Root/Root/Packed Mono Readout/Display/Font/Fonts)"
     },
     {
       "module": "Packed Poly Bool Readout",
@@ -632,7 +632,7 @@
       "module_offset": "0x3f",
       "sha256": "ded2826d8b417c385574840e0fc0bbcc70f7d5d8c8380f1fe0dc09df60699b9e",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 573 (0x23d) at byte 0xb96 (Root/Root/Packed Poly Bool Readout/Display/Font/Fonts)"
+      "detail": "FlowStone import: Unsupported component ID 249 (0xf9) at byte 0xb9d (Root/Root/Packed Poly Bool Readout/Display/Font/Fonts)"
     },
     {
       "module": "Packed Poly Double Readout",
@@ -640,7 +640,7 @@
       "module_offset": "0x41",
       "sha256": "6598bcc0cca6be9abfba5259765afa93d7c8657ef8be44e45c96d57b84465fa1",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 573 (0x23d) at byte 0xb98 (Root/Root/Packed Poly Double Readout/Display/Font/Fonts)"
+      "detail": "FlowStone import: Unsupported component ID 249 (0xf9) at byte 0xb9f (Root/Root/Packed Poly Double Readout/Display/Font/Fonts)"
     },
     {
       "module": "Packed Poly Readout",
@@ -648,7 +648,7 @@
       "module_offset": "0x3a",
       "sha256": "fa71481995370f30edf25875705b5755584d76697c9e21946f2e51259b8eb60b",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 573 (0x23d) at byte 0xb91 (Root/Root/Packed Poly Readout/Display/Font/Fonts)"
+      "detail": "FlowStone import: Unsupported component ID 249 (0xf9) at byte 0xb98 (Root/Root/Packed Poly Readout/Display/Font/Fonts)"
     },
     {
       "module": "Parametric EQ",
@@ -680,7 +680,7 @@
       "module_offset": "0x38",
       "sha256": "f46fb960962cd09b25dca3e4d0053ab1398b59cb2d64e5993ccd60303bdd4769",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 573 (0x23d) at byte 0xb8a (Root/Root/Poly Bool Readout/Display/Font/Fonts)"
+      "detail": "FlowStone import: Unsupported component ID 249 (0xf9) at byte 0xb91 (Root/Root/Poly Bool Readout/Display/Font/Fonts)"
     },
     {
       "module": "Poly Readout",
@@ -688,7 +688,7 @@
       "module_offset": "0x33",
       "sha256": "dc7076a15d9b0216445b2381bbb5ba87b166e210d5deeaf530e20cd46ccee00b",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 573 (0x23d) at byte 0xb85 (Root/Root/Poly Readout/Display/Font/Fonts)"
+      "detail": "FlowStone import: Unsupported component ID 249 (0xf9) at byte 0xb8c (Root/Root/Poly Readout/Display/Font/Fonts)"
     },
     {
       "module": "Poly Stream FFT Display",

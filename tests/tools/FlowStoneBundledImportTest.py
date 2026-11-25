@@ -215,6 +215,12 @@ REDRAW_LIMITER_MODULES = {
     'Detuner': ('Detuner', 0x49ed, 0x4a8e, 'bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50'),
 }
 
+STRING_JOIN_RECORDS = {
+    'Mono Readout': (0xb3f, 'c034a295b99d9eec5f57bb7877d34ec0a078105223252d4a0116cf788bdc8994'),
+    'Poly Readout': (0xb38, 'dc7076a15d9b0216445b2381bbb5ba87b166e210d5deeaf530e20cd46ccee00b'),
+    'Meter - Vintage': (0x1eb, 'e6f06e718145ecb2e18abfd9cbb65d948fb4b72f8a27486cf19b0e5d2c8e5fd8'),
+}
+
 TICKER25_RECORDS = {
     'Mono Readout': (0x5e, 'c034a295b99d9eec5f57bb7877d34ec0a078105223252d4a0116cf788bdc8994'),
     'Mono Bool Readout': (0x68, 'c6e6fc4f5bd7d949af6cb05d85fe4be551a414d23c49a9575166dc3f16f1de3a'),
@@ -606,6 +612,19 @@ def main():
             archive.writestr('schematic.osm', wrap(data[:end], 'RedrawLimiter', struct.unpack_from('<H', data)[0], start))
         paths.append(str(path))
     subprocess.run([str(args.probe.resolve()), '--redraw-limiter-modules', *paths], check=True)
+
+    paths = []
+    for name, (offset, digest) in STRING_JOIN_RECORDS.items():
+        data = (args.flowstone_root / 'Modules' / (name + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled String Array to String hash changed: ' + name)
+        record = data[offset:offset+7]
+        if len(record) != 7 or struct.unpack_from('<H', record)[0] != 573 or record[6] != 0:
+            raise ValueError('Unexpected native String Array to String record: ' + name)
+        path = args.output / (name + ' String Array to String.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', gui_record_document(record, name + ' String Array to String', struct.unpack_from('<H', data)[0]))
+        paths.append(str(path))
+    subprocess.run([str(args.probe.resolve()), '--string-join-records', *paths], check=True)
 
     paths = []
     for name, (offset, digest) in TICKER25_RECORDS.items():
