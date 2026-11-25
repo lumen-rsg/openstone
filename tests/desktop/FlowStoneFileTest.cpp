@@ -3079,6 +3079,63 @@ void nativeRedrawLimiterModule(const QString& path) {
     std::cout<<path.toStdString()<<": complete native RedrawLimiter, held output, host suspension and disk save/reopen passed\n";
 }
 
+Bytes ticker25Document(int version) {
+    Bytes b; header(b,version); beginModule(b,"Root",1); beginModule(b,"Ticker bench",3);
+    primitive(b,181,2,3,"Refresh");
+    primitive(b,326,10,3); b.d(0);
+    primitive(b,29,20,6,"Sentinel"); b.f(8); b.b(0); b.b(0); b.d(123);
+    b.w(1); wire(b,version,0,0,1,0); endModule(b); b.w(0); endModule(b); b.w(0); b.b(0); return b;
+}
+void ticker25RoundTrip(const QByteArray& archive) {
+    using namespace std::chrono_literals;
+    using enum PrimitiveKind;
+    Session s; SchematicFile::importFlowStone(s,archive,{}); auto& g=*s.graph().module(1);
+    check(g.nodes()[0].kind==Tick && g.readTick(1).rate==25 && !g.readTick(1).displaySync &&
+          !g.readTick(1).wired && g.outputType(1)==green::Type::Trigger && g.inspectOutput(1).triggers==0,
+          "Native Ticker 25 imports as a quiet, timer-driven Tick with 25 pulses per second");
+    if(g.nodes().size()==1) { const auto counter=g.addNode(BasicCounter,0,0); g.connect({1,counter,0},LinkNotification::Silent); }
+    const auto verify=[](Schematic& root) {
+        auto& child=*root.module(1); const auto initial=std::get<std::int32_t>(child.readValue(2));
+        const auto advance=[&](auto time,TickWake wake) {
+            const auto schedule=root.advanceTicks(TickTime{}+time,wake);
+            check(!schedule.error && !schedule.needsDisplay,"Imported fixed-rate ticker dispatches without display synchronization");
+            return schedule;
+        };
+        const auto configured=advance(0ms,TickWake::Configure);
+        check(!configured.fired && configured.deadline && *configured.deadline==TickTime{}+40ms && !advance(39ms,TickWake::Timer).fired,
+              "Native 25 Hz ticker waits a full 40 ms period");
+        check(advance(40ms,TickWake::Timer).fired && !advance(40ms,TickWake::Timer).fired &&
+              child.readValue(2)==green::Value{initial+1},"Each due tick emits once through the imported trigger wire");
+        const auto late=advance(125ms,TickWake::Timer);
+        check(late.fired && late.deadline && *late.deadline==TickTime{}+160ms && child.readValue(2)==green::Value{initial+2},
+              "Late timer wakes skip missed pulses and retain the 40 ms phase");
+        check(advance(160ms,TickWake::Timer).fired && !advance(200ms,TickWake::Display).fired &&
+              child.readValue(2)==green::Value{initial+3},"Display frames do not drive the imported fixed-rate ticker");
+    };
+    verify(s.graph()); const auto saved=SchematicFile::project(s); QTemporaryDir dir; const auto path=dir.filePath("ticker25.ostone");
+    SchematicFile::write(path,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(path),{});
+    check(SchematicFile::project(reopened)==saved && reopened.graph().module(1)->inspectOutput(1).triggers==0,
+          "Ticker rate and wiring survive disk save/reopen without replaying events or restoring an old deadline");
+    verify(reopened.graph());
+}
+void importedTicker25() {
+    for(int version : {154,159,166,171,174,177}) {
+        const auto raw=ticker25Document(version); ticker25RoundTrip(zip(raw));
+        const auto parsed=FlowStoneFile::decode(zip(raw));
+        check(parsed.root.children[0].children[2].node.localValue==green::Value{std::int32_t{123}},
+              "Payload-free ticker preserves the following native records");
+        Bytes prefix; primitive(prefix,181,2,3,"Refresh"); const auto at=raw.indexOf(prefix); check(at>0,"Locate ticker header");
+        for(int cut=0;cut<prefix.size();++cut) expectError(zip(raw.left(at+cut)),"Truncated");
+        Bytes link; wire(link,version,0,0,1,0); const auto wireAt=raw.indexOf(link,at+prefix.size()); check(wireAt>0,"Locate ticker wire");
+        auto bad=raw; bad[wireAt+3]=1; expectError(zip(bad),"connector index");
+        bad=raw; qToLittleEndian<quint16>(0,bad.data()+wireAt+4); expectError(zip(bad),"connector index");
+    }
+}
+void nativeTicker25(const QString& path) {
+    ticker25RoundTrip(SchematicFile::read(path));
+    std::cout<<path.toStdString()<<": unchanged Ticker 25 record, timing, notifications and disk save/reopen passed\n";
+}
+
 Bytes booleanNotDocument(int version) {
     Bytes b; header(b,version); beginModule(b,"Root",1); beginModule(b,"Boolean inversion",6);
     primitive(b,138,0,3); b.d(15); b.b(0); b.str("Value");
@@ -3900,6 +3957,8 @@ int main(int argc, char** argv) {
             check(argc>2,"Native RedrawLimiter modules required"); for(int i=2;i<argc;++i) nativeRedrawLimiterModule(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--boolean-not-records") {
             check(argc>2,"Native Boolean Not records required"); for(int i=2;i<argc;++i) nativeBooleanNotRecord(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--ticker25-records") {
+            check(argc>2,"Native Ticker 25 records required"); for(int i=2;i<argc;++i) nativeTicker25(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--boolean-not-presets") {
             check(argc>2,"Native Preset modules required"); for(int i=2;i<argc;++i) nativeBooleanNotPreset(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--after-duplicate-records") {
@@ -3986,7 +4045,7 @@ int main(int argc, char** argv) {
                 Session s; SchematicFile::importFlowStone(s, SchematicFile::read(QString::fromLocal8Bit(argv[i])), {});
                 Session reopened; SchematicFile::loadProject(reopened, SchematicFile::project(s), {});
             }
-        } else { importsAndRoundTrips(); rejectsInvalidFiles(); codePorts(); valuesAndRuby(); linkedCodeSources(); compiledCaches(); valueLayouts(); propertyPanelLayouts(); genericMathRecords(); floatDeZipperRecord(); importedPanels(); legacyPanelControls(); inheritedViews(); propertyWireless(); guiDrawing(); guiSelectorAndRoutedLinks(); penAndFontProperties(); stringFormatsAndBrushes(); customRadialPaths(); importedShapes(); importedDrawingControls(); importedColorConversions(); importedViewCaches(); importedComparisons(); importedRouting(); importedStateRecords(); importedAudioRecords(); importedGeneratorRecords(); importedDropLists(); importedPresets(); importedRouters(); importedMidiCc(); importedBitmaps(); importedFileDialogs(); importedButtons(); importedAfterDuplicate(); importedHeldValues(); importedRedrawLimiters(); importedBooleanNot(); heldClose(); }
+        } else { importsAndRoundTrips(); rejectsInvalidFiles(); codePorts(); valuesAndRuby(); linkedCodeSources(); compiledCaches(); valueLayouts(); propertyPanelLayouts(); genericMathRecords(); floatDeZipperRecord(); importedPanels(); legacyPanelControls(); inheritedViews(); propertyWireless(); guiDrawing(); guiSelectorAndRoutedLinks(); penAndFontProperties(); stringFormatsAndBrushes(); customRadialPaths(); importedShapes(); importedDrawingControls(); importedColorConversions(); importedViewCaches(); importedComparisons(); importedRouting(); importedStateRecords(); importedAudioRecords(); importedGeneratorRecords(); importedDropLists(); importedPresets(); importedRouters(); importedMidiCc(); importedBitmaps(); importedFileDialogs(); importedButtons(); importedAfterDuplicate(); importedHeldValues(); importedRedrawLimiters(); importedBooleanNot(); importedTicker25(); heldClose(); }
         std::cout << "FlowStone import tests passed\n"; return 0;
     } catch (const std::exception& e) { std::cerr << e.what() << '\n'; return 1; }
 }

@@ -101,6 +101,8 @@ are not silently replaced with empty modules or disconnected nodes.
 - Generic Sample and Hold (1053), with Value/Sample inputs, Held output and its
   cached Float, Int, Boolean or String value. Redraw Limiter (478) maps to the
   existing redraw gate; complete bundled `RedrawLimiter` modules are supported.
+- Ticker 25 (181), mapped to a timer-driven Tick at 25 TPS. Native records have
+  no inputs, one Trigger output and no payload beyond the common header.
 - MIDI Control Change (166), with MIDI/CC inputs and Integer Value/Trigger
   Changed outputs. The record has no payload beyond its common node header.
   Its selected controller comes from the live CC input; incoming MIDI state is
@@ -345,6 +347,22 @@ not emit a notification; each incoming notification forwards one output event,
 including when the Boolean value repeats. No additional project flag or runtime
 implementation is required. Schematic position, label, typed module boundaries
 and outgoing links survive conversion and disk save/reopen.
+
+## Ticker 25 conversion
+
+Component **181** is `Ticker40` internally but its native title is **Ticker 25**.
+The factory installs the primary vtable at `0x1404d9210`; an earlier ID extraction
+mistook an auxiliary vtable for the component. Both specific serializers are
+empty. The native timer registration passes a 40 ms period, consistent with 25
+triggers per second. The importer creates OpenStone's Tick with a 25 TPS manual
+rate and display synchronization disabled. Native links cannot address the
+additional TPS input that OpenStone exposes for later editing.
+
+Headless clock tests cover the first full period, early/duplicate wakes, late
+wakes that skip missed pulses, and display frames that do not fire the timer.
+Saving/reopening preserves the rate and links, retaining no old deadline or
+pending event. Exact Windows message-loop timing is not established by these
+tests.
 
 ## Native routing conversion
 
@@ -705,6 +723,8 @@ Useful serializer addresses in that build (image base `0x140000000`):
 | Boolean Not (256) factory / constructor | `0x1400d4570` / `0x140328540` |
 | Boolean Not specific load/save (no payload) | `0x14000d180` |
 | Boolean Not value pull / input notification | `0x1403285f0` / `0x1402e3a50` |
+| Ticker 25 (181) factory / primary vtable | `0x1400dd4a0` / `0x1404d9210` |
+| Ticker 25 timer registration / no-payload serializers | `0x1400e2bc0` / `0x14000d180` |
 | Boolean comparison factory / loader | `0x1400d2a10` / `0x1403036b0` |
 | Boolean comparison predicate / Float Array helper | `0x1403036d0` / `0x1403024d0` |
 | Trigger comparison factory / predicate | `0x1400d2a70` / `0x140304d40` |
@@ -1335,6 +1355,14 @@ invalid extra native connector indices, and independently connected OpenStone
 Source ports through data-port resizing and disk save/reopen. Amp now reaches
 a DSP connector-type mismatch, while Multi LFO reaches a feedback-link rejection;
 these remain explicit blockers in the refreshed inventory.
+
+The Ticker 25 pass adds unchanged records from Mono Readout (`0x5e`), Mono Bool
+Readout (`0x68`) and Scope - Dual (`0xcc5`), with whole-file hashes checked before
+extraction. Authored fixtures cover versions 154, 159, 166, 171, 174 and 177,
+following-record alignment, invalid native connector indices, truncated headers,
+40 ms trigger timing and disk save/reopen. The complete-module scan remains
+**40/124**: the Mono/Packed readouts now advance to String Array to String (573), while
+Scope - Dual advances to component 553.
 
 Independent GUI fixtures exercise all four panel IDs across versions 154, 155,
 170 and 177; actual text drawing commands; anchor metadata; live legacy size and

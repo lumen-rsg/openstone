@@ -215,6 +215,12 @@ REDRAW_LIMITER_MODULES = {
     'Detuner': ('Detuner', 0x49ed, 0x4a8e, 'bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50'),
 }
 
+TICKER25_RECORDS = {
+    'Mono Readout': (0x5e, 'c034a295b99d9eec5f57bb7877d34ec0a078105223252d4a0116cf788bdc8994'),
+    'Mono Bool Readout': (0x68, 'c6e6fc4f5bd7d949af6cb05d85fe4be551a414d23c49a9575166dc3f16f1de3a'),
+    'Scope - Dual': (0xcc5, '569a2a542b3b40763704a29d13158ea6705f3bb44b935a629487e1ab31f4902c'),
+}
+
 # Complete Preset modules, including their final payload-free Boolean Not (256).
 BOOLEAN_NOT_PRESETS = {
     'Multi LFO Speed': ('Multi LFO', 0x330a, 0x3b2f, 0x3a54, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
@@ -600,6 +606,19 @@ def main():
             archive.writestr('schematic.osm', wrap(data[:end], 'RedrawLimiter', struct.unpack_from('<H', data)[0], start))
         paths.append(str(path))
     subprocess.run([str(args.probe.resolve()), '--redraw-limiter-modules', *paths], check=True)
+
+    paths = []
+    for name, (offset, digest) in TICKER25_RECORDS.items():
+        data = (args.flowstone_root / 'Modules' / (name + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled Ticker 25 module hash changed: ' + name)
+        record = data[offset:offset+7]
+        if len(record) != 7 or struct.unpack_from('<H', record)[0] != 181 or record[6] != 0:
+            raise ValueError('Unexpected native Ticker 25 record: ' + name)
+        path = args.output / (name + ' Ticker 25.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', gui_record_document(record, name + ' Ticker 25', struct.unpack_from('<H', data)[0]))
+        paths.append(str(path))
+    subprocess.run([str(args.probe.resolve()), '--ticker25-records', *paths], check=True)
 
     records, modules = [], []
     for name, (source, start, end, offset, digest) in BOOLEAN_NOT_PRESETS.items():

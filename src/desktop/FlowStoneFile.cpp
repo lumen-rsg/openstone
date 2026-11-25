@@ -431,6 +431,7 @@ public:
                 auto& a = out.children[source]; auto& b = out.children[target];
                 const auto portCount = [](const FlowStoneNode& c, bool output) {
                     if (c.nativeTag == 105) return output ? 3 : 4;
+                    if (c.nativeTag == 181) return output ? 1 : 0;
                     if (c.nativeTag == 16 || c.nativeTag == 400) return output ? 3 : c.nativeTag == 400 ? 4 : 5;
                     if (c.nativeTag == 1191 || c.nativeTag == 1192) return output ? 1 : c.nativeTag == 1191 ? 3 : 2;
                     if (c.nativeTag == 131 || c.nativeTag == 132) return output ? 1 : c.nativeTag == 131 ? 4 : 3;
@@ -642,6 +643,7 @@ public:
                 }
                 break;
             case 478: n.kind = RedrawLimiter; break;
+            case 181: n.kind = Tick; n.tick = TickState{}; break;
             case 258: n.kind = AfterLoad; break;
             case 551: n.kind = AfterDuplicate; break;
             case 166: n.kind = MidiCC; break; // No primitive-specific state.
