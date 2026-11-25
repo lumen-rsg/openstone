@@ -893,6 +893,150 @@ void nativeBitmapRecord(const QString& path) {
     reopened.graph().module(1)->fireTrigger(clear); bitmapValue(*reopened.graph().module(1), 1, 0, 0);
     std::cout << path.toStdString() << ": unchanged Bitmap record, exact pixels, Clear and disk save/reopen passed\n";
 }
+Bytes fileDialogDocument(int version, bool boundaries) {
+    Bytes b; header(b,version); beginModule(b,"Root",1); beginModule(b,"File picker",boundaries ? 12 : 2);
+    primitive(b,103,20,30,"Choose image");
+    if (boundaries) {
+        const char* names[]{"Open","Filter","Type","Title","Folder","Name","Ext"};
+        for (int i=0;i<7;++i) { primitive(b,138,0,i*2); b.d(i==0 ? 9 : i==2 ? 3 : 1); b.b(0); b.str(names[i]); }
+        for (int i=0;i<3;++i) { primitive(b,139,40,i*2); b.d(i==0 ? 1 : 9); b.b(0); b.str(i==0 ? "Path" : i==1 ? "OK" : "Cancel"); }
+    }
+    primitive(b,29,50,50,"Sentinel"); b.f(8); b.b(0); b.b(0); b.d(123);
+    b.w(boundaries ? 10 : 0);
+    if (boundaries) {
+        for (int i=0;i<7;++i) wire(b,version,i+1,0,0,i);
+        for (int i=0;i<3;++i) wire(b,version,0,i,i+8,0);
+    }
+    endModule(b); b.w(0); endModule(b); b.w(0); b.b(0); return b;
+}
+struct FileDialogBench { int pulse; std::array<int,6> controls; int okCounter, pathOrder, pathOnOk; bool boundaries; };
+FileDialogBench wireFileDialog(Schematic& root, bool boundaries) {
+    using enum PrimitiveKind;
+    auto& g = boundaries ? root : *root.module(1);
+    FileDialogBench bench{g.addNode(Trigger,0,0),{},g.addNode(TriggerCounter,0,0),g.addNode(SampleAndHold,0,0),g.addNode(SampleAndHold,0,0),boundaries};
+    g.connect({bench.pulse,1,0},LinkNotification::Silent);
+    for (int i=0;i<6;++i) {
+        bench.controls[i] = i==1 ? g.addNode(Int,0,0,std::int32_t{1}) : g.addNode(String,0,0,std::string{});
+        g.connect({bench.controls[i],1,i+1},LinkNotification::Silent);
+    }
+    for (auto link : {SchematicLink{1,bench.okCounter,0,1},{bench.okCounter,bench.pathOrder,0},
+                      {1,bench.pathOrder,1,0},{1,bench.pathOnOk,0,0},{1,bench.pathOnOk,1,1}})
+        g.connect(link,LinkNotification::Silent);
+    return bench;
+}
+void exerciseFileDialog(Schematic& root, const FileDialogBench& bench) {
+    using green::Value;
+    auto& g = bench.boundaries ? root : *root.module(1); auto& owner = *root.module(1);
+    check(!root.pendingAppDialog() && owner.readValue(1)==Value{std::string{}},"Import/reopen does not show a dialog or restore its transient selected path");
+    g.setValue(bench.controls[0],std::string{"Images|*.png;*.jpg|Text|*.txt||"});
+    g.setValue(bench.controls[2],std::string{"Pick an image"}); g.setValue(bench.controls[3],std::string{"/home/音楽"});
+    g.setValue(bench.controls[4],std::string{"new image.png"}); g.setValue(bench.controls[5],std::string{"png"});
+    check(!root.pendingAppDialog(),"File Dialog configuration inputs are passive");
+    for (int mode : {1,0,2,-1,std::numeric_limits<int>::min(),std::numeric_limits<int>::max()}) {
+        g.setValue(bench.controls[1],std::int32_t(mode)); g.fireTrigger(bench.pulse);
+        check(root.pendingAppDialog(),"Open trigger creates a headless host dialog request"); const auto request = *root.pendingAppDialog();
+        check(request.kind==PrimitiveKind::FileDialog && request.ownerPath==std::vector{1} && request.node==1 &&
+              request.type==(mode!=0 ? 1 : 0) && request.filter=="Images|*.png;*.jpg|Text|*.txt|" && request.title=="Pick an image" &&
+              request.folder=="/home/音楽" && request.name=="new image.png" && request.suffix=="png",
+              "Native connector order snapshots all parameters and uses zero=Save, nonzero=Open");
+        g.fireTrigger(bench.pulse); check(root.pendingAppDialog()->token==request.token,"Repeated Open triggers do not create duplicate active dialogs");
+        g.setValue(bench.controls[4],std::string{"next image.png"});
+        check(root.pendingAppDialog()->name=="new image.png","Pending request retains its captured parameters");
+        const auto values=owner.inspectOutput(1,0).triggers, ok=owner.inspectOutput(1,1).triggers, cancel=owner.inspectOutput(1,2).triggers;
+        const auto count=g.readValue(bench.okCounter);
+        check(root.finishAppDialog(request.token,true,"/chosen/画像.png"),"Complete imported File Dialog at the owning nested node");
+        check(owner.readValue(1)==Value{std::string{"/chosen/画像.png"}} && g.readValue(bench.pathOnOk)==owner.readValue(1) &&
+              g.readValue(bench.pathOrder)==count && owner.inspectOutput(1,0).triggers==values+1 &&
+              owner.inspectOutput(1,1).triggers==ok+1 && owner.inspectOutput(1,2).triggers==cancel,
+              "Selected Path notifies before OK, whose listeners see the new Unicode path");
+        g.fireTrigger(bench.pulse); const auto next=root.pendingAppDialog()->token;
+        check(!root.finishAppDialog(request.token,true,"/stale") && root.pendingAppDialog()->token==next,"Stale response cannot complete a later dialog");
+        check(root.finishAppDialog(next,false) && !root.pendingAppDialog() && owner.readValue(1)==Value{std::string{"/chosen/画像.png"}} &&
+              owner.inspectOutput(1,0).triggers==values+1 && owner.inspectOutput(1,1).triggers==ok+1 &&
+              owner.inspectOutput(1,2).triggers==cancel+1,"Cancel only fires Cancel and retains the last successful Path");
+        g.setValue(bench.controls[4],std::string{"new image.png"});
+    }
+    for (auto [input,expected] : std::vector<std::pair<std::string,std::string>>{
+         {"","All files (*.*)|*.*|"},{".png|*.jpg|","*.png|*.png|*.jpg|*.jpg|"},
+         {" Images | png | Waves | .wav |","Images|*.png|Waves|*.wav|"}}) {
+        g.setValue(bench.controls[0],input); g.fireTrigger(bench.pulse);
+        check(root.pendingAppDialog()->filter==expected,"Native shorthand filters expand into host label/pattern pairs");
+        root.finishAppDialog(root.pendingAppDialog()->token,false);
+    }
+}
+void fileDialogRoundTrip(const QByteArray& archive, bool boundaries) {
+    Session s; SchematicFile::importFlowStone(s,archive,{}); auto& owner=*s.graph().module(1);
+    check(owner.nodes()[0].kind==PrimitiveKind::FileDialog && owner.nodes()[0].flowStoneFileDialog,
+          "Recognize native File Dialog and retain its default/filter compatibility policy");
+    if (!boundaries) {
+        const auto pulse=owner.addNode(PrimitiveKind::Trigger,0,0); owner.connect({pulse,1,0},LinkNotification::Silent); owner.fireTrigger(pulse);
+        check(s.graph().pendingAppDialog()->type==1 && s.graph().pendingAppDialog()->title=="Choose File" &&
+              s.graph().pendingAppDialog()->filter=="All files (*.*)|*.*|","Unconnected native Type defaults to Open with the native title and all-files filter");
+        s.graph().finishAppDialog(s.graph().pendingAppDialog()->token,false);
+    }
+    const auto bench=wireFileDialog(s.graph(),boundaries); exerciseFileDialog(s.graph(),bench);
+    // Save while a dialog is open: live requests and results must not be replayed on load.
+    auto& g=boundaries ? s.graph() : owner; g.fireTrigger(bench.pulse);
+    const auto saved=SchematicFile::project(s); QTemporaryDir dir; const auto path=dir.filePath("file-dialog.ostone"); SchematicFile::write(path,saved);
+    Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(path),{});
+    check(!reopened.graph().pendingAppDialog() && SchematicFile::project(reopened)==saved,
+          "Dialog policy, controls, boundaries and links survive disk save/reopen without reopening a pending dialog");
+    exerciseFileDialog(reopened.graph(),bench);
+}
+void importedFileDialogs() {
+    for (int version : {154,159,160,161,166,171,177}) for (bool boundaries : {false,true}) {
+        const auto raw=fileDialogDocument(version,boundaries); fileDialogRoundTrip(zip(raw),boundaries);
+        const auto parsed=FlowStoneFile::decode(zip(raw));
+        check(parsed.root.children[0].children.back().node.localValue==green::Value{std::int32_t{123}},"Resume immediately after the payload-free File Dialog record");
+        Bytes prefix; primitive(prefix,103,20,30,"Choose image"); const auto at=raw.indexOf(prefix);
+        for (int cut=0;cut<prefix.size();++cut) expectError(zip(raw.left(at+cut)),"Truncated");
+        if (boundaries) {
+            auto bad=raw; Bytes link; wire(link,version,1,0,0,0); const auto wireAt=bad.indexOf(link,at+prefix.size());
+            check(wireAt>0,"Locate File Dialog wire"); bad[wireAt+6]=char(7); expectError(zip(bad),"connector index");
+            bad=raw; link.clear(); wire(link,version,0,0,8,0); const auto outputAt=bad.indexOf(link,wireAt);
+            check(outputAt>0,"Locate File Dialog Path wire"); bad[outputAt+3]=char(3); expectError(zip(bad),"connector index");
+        }
+    }
+    Session ordinary; auto& g=ordinary.graph(); const auto dialog=g.addNode(PrimitiveKind::FileDialog,0,0), pulse=g.addNode(PrimitiveKind::Trigger,0,0);
+    g.connect({pulse,dialog,0}); g.fireTrigger(pulse);
+    check(g.pendingAppDialog()->type==0 && !g.nodes()[0].flowStoneFileDialog,"Existing OpenStone File Dialog defaults retain their behavior");
+    Session source; SchematicFile::importFlowStone(source,zip(fileDialogDocument(177,false)),{});
+    for (bool wrongKind : {false,true}) {
+        auto doc=QJsonDocument::fromJson(SchematicFile::project(source)).object(); auto root=doc["root"].toObject();
+        auto nodes=root["nodes"].toArray(); auto module=nodes[0].toObject(); auto children=module["nodes"].toArray();
+        auto node=children[0].toObject();
+        if (wrongKind) node["kind"]="Int"; else node["flowStoneFileDialog"]="bad";
+        children[0]=node; module["nodes"]=children; nodes[0]=module; root["nodes"]=nodes; doc["root"]=root;
+        const auto before=SchematicFile::project(ordinary); bool touched=false,rejected=false;
+        try { SchematicFile::loadProject(ordinary,QJsonDocument(doc).toJson(),[&] { touched=true; }); }
+        catch (const std::exception& e) { rejected=std::string(e.what()).find("native File Dialog state")!=std::string::npos; }
+        check(rejected && !touched && SchematicFile::project(ordinary)==before,"Malformed native dialog policy rejects before replacing the project");
+    }
+}
+void nativeFileDialogRecord(const QString& path) {
+    fileDialogRoundTrip(SchematicFile::read(path),false);
+    std::cout<<path.toStdString()<<": unchanged File Dialog record, requests/results and disk save/reopen passed\n";
+}
+void nativeBitmapFileDialog(const QString& path) {
+    using enum PrimitiveKind;
+    int loads=0; const yellow::Bitmap replacement{2,1,{10,20,30,40,50,60,70,80}};
+    const auto loader=[&](std::string_view chosen) { check(chosen=="/chosen/new.png","Native Path arrives at Bitmap before Load"); ++loads; return replacement; };
+    Session s(loader); SchematicFile::importFlowStone(s,SchematicFile::read(path),{}); auto& g=*s.graph().module(1);
+    check(g.nodes().size()==2 && g.nodes()[0].kind==FileDialog && g.nodes()[1].kind==Bitmap && g.links().size()==2,
+          "Preserve bundled File Dialog and Bitmap records with Path/Load wiring"); bitmapValue(g,2,32,32);
+    const auto pulse=g.addNode(Trigger,0,0); g.connect({pulse,1,0},LinkNotification::Silent); g.fireTrigger(pulse);
+    s.graph().finishAppDialog(s.graph().pendingAppDialog()->token,false); check(loads==0,"Cancel does not request a bitmap load");
+    const auto verify=[&](Schematic& root) {
+        auto& owner=*root.module(1); owner.fireTrigger(pulse); const auto before=loads;
+        check(root.finishAppDialog(root.pendingAppDialog()->token,true,"/chosen/new.png") && loads==before+1 &&
+              bitmapValue(owner,2,2,1)==replacement,"Native Path/OK connections load the selected bitmap exactly once");
+    };
+    verify(s.graph()); const auto saved=SchematicFile::project(s); QTemporaryDir dir; const auto target=dir.filePath("bitmap-picker.ostone");
+    SchematicFile::write(target,saved); Session reopened(loader); SchematicFile::loadProject(reopened,SchematicFile::read(target),{});
+    check(loads==1 && SchematicFile::project(reopened)==saved && bitmapValue(*reopened.graph().module(1),2,2,1)==replacement,
+          "Reopening preserves loaded pixels and functional dialog wiring without external file reads"); verify(reopened.graph());
+    std::cout<<path.toStdString()<<": native File Dialog/Bitmap records, selection/load ordering and disk save/reopen passed\n";
+}
 void brushPayload(Bytes& b, int version, int kind, bool ellipse = false) {
     if (version < 167) { b.f(.1f); b.d(0xff000000); b.d(0); return; }
     b.d(kind);
@@ -3271,6 +3415,10 @@ int main(int argc, char** argv) {
     try {
         if (argc > 1 && QByteArray(argv[1]) == "--shape-records") {
             for(int i=2;i<argc;++i)nativeShapeRecord(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--file-dialog-records") {
+            check(argc>2,"Native File Dialog records required"); for(int i=2;i<argc;++i) nativeFileDialogRecord(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--bitmap-file-dialogs") {
+            check(argc>2,"Native Bitmap/File Dialog records required"); for(int i=2;i<argc;++i) nativeBitmapFileDialog(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--bitmap-records") {
             check(argc>2,"Native Bitmap records required"); for(int i=2;i<argc;++i) nativeBitmapRecord(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--midi-cc-records") {
@@ -3343,7 +3491,7 @@ int main(int argc, char** argv) {
                 Session s; SchematicFile::importFlowStone(s, SchematicFile::read(QString::fromLocal8Bit(argv[i])), {});
                 Session reopened; SchematicFile::loadProject(reopened, SchematicFile::project(s), {});
             }
-        } else { importsAndRoundTrips(); rejectsInvalidFiles(); codePorts(); valuesAndRuby(); linkedCodeSources(); compiledCaches(); valueLayouts(); propertyPanelLayouts(); genericMathRecords(); floatDeZipperRecord(); importedPanels(); legacyPanelControls(); inheritedViews(); propertyWireless(); guiDrawing(); guiSelectorAndRoutedLinks(); penAndFontProperties(); stringFormatsAndBrushes(); customRadialPaths(); importedShapes(); importedDrawingControls(); importedColorConversions(); importedViewCaches(); importedComparisons(); importedRouting(); importedStateRecords(); importedAudioRecords(); importedGeneratorRecords(); importedDropLists(); importedPresets(); importedRouters(); importedMidiCc(); importedBitmaps(); heldClose(); }
+        } else { importsAndRoundTrips(); rejectsInvalidFiles(); codePorts(); valuesAndRuby(); linkedCodeSources(); compiledCaches(); valueLayouts(); propertyPanelLayouts(); genericMathRecords(); floatDeZipperRecord(); importedPanels(); legacyPanelControls(); inheritedViews(); propertyWireless(); guiDrawing(); guiSelectorAndRoutedLinks(); penAndFontProperties(); stringFormatsAndBrushes(); customRadialPaths(); importedShapes(); importedDrawingControls(); importedColorConversions(); importedViewCaches(); importedComparisons(); importedRouting(); importedStateRecords(); importedAudioRecords(); importedGeneratorRecords(); importedDropLists(); importedPresets(); importedRouters(); importedMidiCc(); importedBitmaps(); importedFileDialogs(); heldClose(); }
         std::cout << "FlowStone import tests passed\n"; return 0;
     } catch (const std::exception& e) { std::cerr << e.what() << '\n'; return 1; }
 }

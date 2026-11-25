@@ -467,6 +467,7 @@ public:
         } else {
             n.x = u16() * 16.0; n.y = u16() * 16.0; n.label = string();
             switch (tag) {
+            case 103: n.kind = FileDialog; n.flowStoneFileDialog = true; break;
             case 105: n.kind = Bitmap; n.localValue = bitmapRecord(); break;
             case 16: case 400: case 1191: case 1192:
                 n.kind = tag == 400 || tag == 1192 ? ModulePropertiesGui : ModuleGui;

@@ -3529,6 +3529,7 @@ Schematic::NodePorts Schematic::makePorts(green::Runtime& runtime, const Schemat
                 initial = std::string{"TCP"};
             }
             if (entry.kind == MidiCCStream && index == 3) initial = 1.0F;
+            if (entry.kind == FileDialog && entry.flowStoneFileDialog && index == 2) initial = std::int32_t{1};
             if ((entry.kind == DeZipper || entry.kind == FloatDeZipper) && index == 1) initial = 40.0f;
             if (entry.kind == PresetManager && index == 0) initial = std::int32_t{1};
             if (entry.kind == PresetLoad && index == 5) initial = std::numeric_limits<std::int32_t>::max();

@@ -59,6 +59,8 @@ are not silently replaced with empty modules or disconnected nodes.
 - Bitmap (105), with embedded raster pixels or references into the document's
   image table. Bitmap/Width/Height outputs and Path/Load/Clear wiring survive
   conversion. A connected native clipboard-Paste input rejects explicitly.
+- File Dialog (103), with its native connector order, default-Open policy and
+  filter syntax. Selection and cancellation use OpenStone's host-dialog service.
 - Routed links retain their functional endpoints. Their short-coordinate routing
   points are bounded and consumed; OpenStone supplies the visible link geometry.
 - Legacy Stream Add, Subtract, Multiply, Divide, Min and Max IDs; Delay1 (30),
@@ -203,6 +205,46 @@ serialization.
 
 The bundled tests establish exact raster preservation, not visual parity with
 Windows rendering or support for the separate Draw Bitmap (106) record.
+
+## File Dialog conversion
+
+File Dialog (103) has no primitive-specific load/save payload. With an empty
+label its complete record is seven bytes: component ID, grid X/Y and an empty
+MFC string. Its last selected path is transient, rather than stored in the
+native file. The input/output order is:
+
+| Direction | Index | Type | Name |
+| --- | --- | --- | --- |
+| Input | 0 | Trigger | Open |
+| Input | 1 | String | Filter |
+| Input | 2 | Int | Type |
+| Input | 3 | String | Title |
+| Input | 4 | String | Folder |
+| Input | 5 | String | Name |
+| Input | 6 | String | Ext |
+| Output | 0 | String | Path |
+| Output | 1 | Trigger | OK |
+| Output | 2 | Trigger | Cancel |
+
+Imported dialogs retain their native behavior through the `flowStoneFileDialog`
+project flag. An unconnected Type defaults to 1 (Open); an explicit zero selects
+Save and any nonzero integer selects Open. Unconnected Title defaults to
+`Choose File`. Empty filters select all files. Native filter shorthand, including
+`.png`, `*.png|*.jpg|`, and `Images|png|`, expands to label/pattern pairs for the
+host picker. Full label/pattern pairs and semicolon-separated patterns remain
+supported. Newly created OpenStone dialogs retain their existing defaults.
+
+Only Open triggers a dialog. Its request snapshots the inputs and is routed back
+to the owning node, including inside nested modules. Successful completion
+updates and notifies Path before firing OK. Cancel fires only Cancel and keeps
+the last successful path. Dialog requests and selected paths are not serialized:
+saving while a dialog is open does not reopen it or emit a result on project
+load. Stale response tokens cannot complete a later request.
+
+The UI uses OpenStone's host file picker. FlowStone's Windows-specific folder,
+filename and inferred-extension suggestions are not emulated; explicit Folder,
+Name and Ext inputs are forwarded to the host. Headless tests simulate picker
+responses and do not establish visual parity with a running Windows dialog.
 
 ## Native routing conversion
 
@@ -591,6 +633,10 @@ Useful serializer addresses in that build (image base `0x140000000`):
 | Bitmap property header load / save (v160+) | `0x1403bf950` / `0x1403bfa10` |
 | Bitmap Load / Paste / Clear dispatch | `0x140326cd0` |
 | Image-table zero-based lookup | `0x140029e10` |
+| File Dialog (103) factory / constructor | `0x1400d5960` / `0x14033f310` |
+| File Dialog specific load/save (no payload) | `0x14000d180` |
+| File Dialog Open / result dispatch | `0x14033fa70` |
+| File Dialog filter expansion | `0x14033f420` |
 | Preset Float factory / constructor | `0x1400d99f0` / `0x140092ff0` |
 | Preset Float load / save | `0x140093f10` / `0x140094460` |
 | Preset Float input / init callbacks | `0x140093cd0` / `0x1400931b0` |
@@ -1017,10 +1063,31 @@ from saved pixels without reading the original image path. Invalid resource
 indices, oversized dimensions, corrupt images, truncation, bad lengths/flags,
 invalid ports and connected Paste inputs check atomic rejection.
 
-The latest inventory remains **24/124** complete imports/save-reopens. Detuner
-and Multi LFO now pass Bitmap and reach File Dialog (103); their complete Knob
+The Bitmap inventory remained **24/124** complete imports/save-reopens. Detuner
+and Multi LFO passed Bitmap and reached File Dialog (103); their complete Knob
 and Bitmap wrapper modules are not yet supported. This pass establishes static
 pixel preservation, not Windows GUI rendering parity.
+
+The File Dialog pass verifies the unchanged seven-byte records following those
+three Bitmaps: Multi LFO Speed (`0x31c3`), Multi LFO Depth (`0x5996`), and Detuner
+(`0x4408`). Separate authored benches retain both the native File Dialog and
+native Bitmap records and reproduce their original Path-to-Path and OK-to-Load
+connections. A simulated successful selection loads exactly one image; Cancel
+does not request a load. The loaded pixels and functional picker links survive
+disk save/reopen without reading the original image file.
+
+Authored File Dialog fixtures cover versions 154, 159, 160, 161, 166, 171 and 177,
+standalone records and all seven inputs/three outputs through module boundaries.
+They verify default and explicit Open/Save modes (including nonzero extremes),
+full and shorthand filters, Unicode paths, passive configuration, captured
+request parameters, Path-before-OK ordering, Cancel, stale responses and saving
+with a pending request. Native compatibility flags survive reopening; malformed
+flags, truncated headers and invalid connector indices reject atomically.
+
+The latest inventory remains **24/124** complete imports/save-reopens. Detuner
+and Multi LFO now pass File Dialog and reach Button (17). The tests above use
+unchanged component records in authored benches; their complete enclosing Knob
+and Bitmap wrapper modules remain unsupported.
 
 Independent GUI fixtures exercise all four panel IDs across versions 154, 155,
 170 and 177; actual text drawing commands; anchor metadata; live legacy size and

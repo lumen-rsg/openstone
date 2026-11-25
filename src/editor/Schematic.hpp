@@ -685,6 +685,7 @@ struct SchematicNode {
     int lastSwitchInput = 0;
     // Imported native routers retain populated sockets and their routing policy.
     std::optional<int> flowStoneRoutingBranches;
+    bool flowStoneFileDialog = false; // Native default-Open policy and filter syntax.
     std::optional<MatrixState> matrix;
     std::optional<NetworkState> network;
     std::optional<SfzState> sfz;

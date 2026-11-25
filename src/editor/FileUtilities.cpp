@@ -26,6 +26,30 @@ constexpr std::pair<std::string_view, std::span<const std::string_view>> message
     {"abortretryignore", abortRetryIgnoreButtons}, {"retrycancel", retryCancelButtons}, {"okcancel", okCancelButtons},
 };
 
+std::string nativeFileFilter(std::string_view remaining)
+{
+    const auto next = [&]() {
+        const auto at = remaining.find('|');
+        std::string field{remaining.substr(0, at)};
+        remaining = at == std::string_view::npos ? std::string_view{} : remaining.substr(at + 1);
+        const auto first = field.find_first_not_of(" \t\r\n\v\f");
+        field = first == std::string::npos ? std::string{} : field.substr(first, field.find_last_not_of(" \t\r\n\v\f") - first + 1);
+        return field;
+    };
+    std::string result;
+    while (!remaining.empty()) {
+        auto label = next();
+        if (label.empty()) break;
+        if (label.starts_with('.')) label.insert(0, "*");
+        auto pattern = label.starts_with("*.") ? label : next();
+        if (pattern.empty()) break;
+        if (pattern.starts_with('.')) pattern.insert(0, "*");
+        if (!pattern.starts_with("*.")) pattern.insert(0, "*.");
+        result += label + '|' + pattern + '|';
+    }
+    return result.empty() ? "All files (*.*)|*.*|" : result;
+}
+
 std::uint64_t nextAppDialogToken()
 {
     static std::atomic<std::uint64_t> next = 0;
@@ -316,9 +340,9 @@ void Schematic::receiveFileUtility(SchematicNode& entry, int input)
         request.initialColor = std::get<yellow::Color>(readInput(id, 2));
         request.alpha = static_cast<std::uint8_t>(std::clamp(integer(1), 0, 255));
     } else if (entry.kind == FileDialog) {
-        request.filter = text(1);
-        request.type = integer(2);
-        request.title = text(3);
+        request.filter = entry.flowStoneFileDialog ? nativeFileFilter(text(1)) : text(1);
+        request.type = entry.flowStoneFileDialog ? (integer(2) != 0 ? 1 : 0) : integer(2);
+        request.title = entry.flowStoneFileDialog && !hasValueInput(id,3) ? "Choose File" : text(3);
         request.folder = text(4);
         request.name = text(5);
         request.suffix = text(6);

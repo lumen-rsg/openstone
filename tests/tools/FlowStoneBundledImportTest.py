@@ -162,6 +162,12 @@ BITMAP_RECORDS = {
     'Detuner Bitmap': ('Detuner', 0x337e, 4215, 'bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50'),
 }
 
+FILE_DIALOG_RECORDS = {
+    'Multi LFO Speed Bitmap': 0x31c3,
+    'Multi LFO Depth Bitmap': 0x5996,
+    'Detuner Bitmap': 0x4408,
+}
+
 
 def gui_record_document(record, name, version, *, node_count=1, links=()):
     header = struct.pack('<HIIH', version, 1, 1, 0) + bytes(3) + b'\1' + bytes(12)
@@ -429,6 +435,30 @@ def main():
             archive.writestr('schematic.osm', gui_record_document(record, name, struct.unpack_from('<H', data)[0]))
         paths.append(str(path))
     subprocess.run([str(args.probe.resolve()), '--bitmap-records', *paths], check=True)
+
+    dialogs, pickers = [], []
+    for name, offset in FILE_DIALOG_RECORDS.items():
+        source, bitmap_offset, bitmap_size, digest = BITMAP_RECORDS[name]
+        data = (args.flowstone_root / 'Modules' / (source + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled File Dialog module hash changed: ' + source)
+        record = data[offset:offset+7]
+        if len(record) != 7 or struct.unpack_from('<H', record)[0] != 103 or record[6] != 0:
+            raise ValueError('Unexpected native File Dialog record: ' + name)
+        version = struct.unpack_from('<H', data)[0]
+        path = args.output / (name + ' File Dialog.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', gui_record_document(record, name + ' dialog', version))
+        dialogs.append(str(path))
+        # Reproduce the containing module's Path->Path and OK->Load links in an
+        # authored bench. Its Button record (17) remains outside this import pass.
+        pair = record + data[bitmap_offset:bitmap_offset+bitmap_size]
+        path = args.output / (name + ' picker.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', gui_record_document(pair, name + ' picker', version,
+                              node_count=2, links=[(0,0,1,0),(0,1,1,1)]))
+        pickers.append(str(path))
+    subprocess.run([str(args.probe.resolve()), '--file-dialog-records', *dialogs], check=True)
+    subprocess.run([str(args.probe.resolve()), '--bitmap-file-dialogs', *pickers], check=True)
 
     records, modules = [], []
     for source, (start, end, offset, digest) in MIDI_CC_MODULES.items():

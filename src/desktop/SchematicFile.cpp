@@ -500,6 +500,7 @@ QJsonObject SchematicFile::encode(const Session::NodeCopy& copy, std::optional<d
         {"syncGroup", QString::number(copy.syncGroup)}
     };
     if (node.compareArrayElements) object.insert("compareArrayElements", true);
+    if (node.flowStoneFileDialog) object.insert("flowStoneFileDialog", true);
     if (node.flowStoneRoutingBranches) {
         QJsonObject routing{{"branches", *node.flowStoneRoutingBranches}};
         if (node.kind == PrimitiveKind::LastSwitch) routing.insert("lastInput", node.lastSwitchInput);
@@ -679,6 +680,10 @@ Session::NodeCopy SchematicFile::decode(const QJsonObject& object, int depth, st
     if (node.kind == PrimitiveKind::LoadWaveFile && object.contains("waveRate")) {
         node.waveFile.rate = integer(object["waveRate"], "wave sample rate", 0);
         node.waveFile.status = integer(object["waveStatus"], "wave status", 0, 4);
+    }
+    if (object.contains("flowStoneFileDialog")) {
+        if (node.kind != PrimitiveKind::FileDialog || !object["flowStoneFileDialog"].isBool()) invalid("native File Dialog state");
+        node.flowStoneFileDialog = object["flowStoneFileDialog"].toBool();
     }
     if (node.kind == PrimitiveKind::WaveFileArray) {
         node.waveFile.excludeSamples = object["waveNoSave"].toBool(false);
