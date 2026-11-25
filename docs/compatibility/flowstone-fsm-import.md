@@ -79,6 +79,8 @@ are not silently replaced with empty modules or disconnected nodes.
   typed/Automatic Green value connectors and fixed Boolean control inputs.
   Trigger Switch also accepts a Trigger-only signal. The native connector order,
   type/lock lists and Select's saved condition-notification cache are retained.
+- Boolean Not (256), with one fixed Boolean input and output, mapped to Not.
+  Its record contains only the common header; values are pulled from its input.
 - Index Selector (408), Counter (326), After Load (258), and After Duplicate (551). Index Selector
   retains its selected index and consumes its native size/property-box layout;
   its List/Sort/Set and Index/Text ports use OpenStone's existing node menu.
@@ -327,6 +329,22 @@ the first event and then at most one per 10 ms, suppress events during preset
 redraw suspension or while a plug-in editor is hidden, and resume on a new
 event. There is no deferred catch-up event. This verifies OpenStone's scheduler
 behavior, not exact Windows message-loop coalescing or display-rate parity.
+
+## Boolean Not conversion
+
+Component **256** (`BoolNot`, native title `Not`) contains only the common
+primitive header: little-endian component ID, grid X/Y and an MFC CString label.
+Its specific load/save vtable slots both point to the empty function
+`0x14000d180`; there are no generic connector lists, property layout or cached
+value bytes. The unchanged seven-byte empty-label records in Multi LFO,
+Detuner and Amp end immediately before their containing module's link count.
+
+The importer maps this record to OpenStone's fixed-Boolean Not primitive. An
+unconnected input reads false, so the output reads true. Reading a value does
+not emit a notification; each incoming notification forwards one output event,
+including when the Boolean value repeats. No additional project flag or runtime
+implementation is required. Schematic position, label, typed module boundaries
+and outgoing links survive conversion and disk save/reopen.
 
 ## Native routing conversion
 
@@ -680,6 +698,9 @@ Useful serializer addresses in that build (image base `0x140000000`):
 | Custom connector-box layout | `0x140083ee0` |
 | Multiline text / version-177 property header | `0x14036f1d0` / `0x1403bf950` |
 | Generic math / versioned Power and Log10 | `0x1402e2470` / `0x1402e4860` |
+| Boolean Not (256) factory / constructor | `0x1400d4570` / `0x140328540` |
+| Boolean Not specific load/save (no payload) | `0x14000d180` |
+| Boolean Not value pull / input notification | `0x1403285f0` / `0x1402e3a50` |
 | Boolean comparison factory / loader | `0x1400d2a10` / `0x1403036b0` |
 | Boolean comparison predicate / Float Array helper | `0x1403036d0` / `0x1403024d0` |
 | Trigger comparison factory / predicate | `0x1400d2a70` / `0x140304d40` |
@@ -1252,11 +1273,32 @@ ordinary-hold behavior. Malformed caches, headers, fixed ports and lock indices
 reject atomically. The public tests contain only authored data and native module
 hashes/offsets, with vendor bytes supplied by the external reference corpus.
 
-The latest Redraw Limiter inventory remains **24/124** complete enclosing-module
+The Redraw Limiter inventory remained **24/124** complete enclosing-module
 imports/save-reopens. Detuner and Multi LFO now pass `Preset/RedrawLimiter` and
 reach Boolean Not (256) in their containing Preset modules. Internal module
 coverage has advanced; those complete enclosing modules still require more
 record mappings.
+
+The Boolean Not pass tests unchanged records from Multi LFO Speed (`0x3a54`),
+Detuner (`0x4c9c`) and Amp (`0x2621`), plus their complete 19-node/20-link Preset
+submodules: `0x330a`–`0x3b2f`, `0x454f`–`0x4d77` and `0x1ed9`–`0x26fc`,
+respectively, with end offsets exclusive. Supplemental data notifications check
+the original Interact-to-edit-gate and Interact-to-Not-to-redraw-gate routes:
+the edit gate opens during interaction, and the inverted redraw gate opens only
+when idle. Both values, repeated notifications and both gates remain functional
+after disk save/reopen. Whole-file hashes pin the external native fixtures;
+vendor bytes are not included in the public tests.
+
+Authored fixtures cover versions 154, 159, 161, 165, 166, 171, 174 and 177,
+fixed Boolean types, unconnected defaults, chained inversions, fan-out through
+module boundaries, header/following-record alignment, silent import/wiring and
+disk save/reopen. Truncated headers and invalid input/output indices reject
+atomically. These are headless import/runtime checks, not live Windows tests.
+
+The latest Boolean Not inventory remains **24/124** complete enclosing-module
+imports/save-reopens. Amp, Detuner and Multi LFO now pass their Preset modules;
+their next failures are unsupported linked code-source string producers in
+`Label/1`, `Label/1` and `Selector/1`, respectively.
 
 Independent GUI fixtures exercise all four panel IDs across versions 154, 155,
 170 and 177; actual text drawing commands; anchor metadata; live legacy size and

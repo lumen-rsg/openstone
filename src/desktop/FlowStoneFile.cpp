@@ -627,6 +627,7 @@ public:
                 if (version >= 170) genericMath(n); else n.typeOverride = Type::Float;
                 break;
             case 429: n.kind = FromDecibel; genericMath(n); break;
+            case 256: n.kind = Not; break; // Fixed Boolean ports; no primitive-specific state.
             case 1053:
                 n.kind = SampleAndHold; genericMath(n); n.flowStoneSampleAndHold = true;
                 if (!n.typeOverride) break;

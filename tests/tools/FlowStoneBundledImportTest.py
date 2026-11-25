@@ -194,6 +194,13 @@ REDRAW_LIMITER_MODULES = {
     'Detuner': ('Detuner', 0x49ed, 0x4a8e, 'bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50'),
 }
 
+# Complete Preset modules, including their final payload-free Boolean Not (256).
+BOOLEAN_NOT_PRESETS = {
+    'Multi LFO Speed': ('Multi LFO', 0x330a, 0x3b2f, 0x3a54, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
+    'Detuner': ('Detuner', 0x454f, 0x4d77, 0x4c9c, 'bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50'),
+    'Amp': ('Amp', 0x1ed9, 0x26fc, 0x2621, 'b7ef92876488c00f1d16bee4d11cf2dbccaeb29904a6bb05ffd9ca2b5645dc28'),
+}
+
 
 def gui_record_document(record, name, version, *, node_count=1, links=()):
     header = struct.pack('<HIIH', version, 1, 1, 0) + bytes(3) + b'\1' + bytes(12)
@@ -548,6 +555,25 @@ def main():
             archive.writestr('schematic.osm', wrap(data[:end], 'RedrawLimiter', struct.unpack_from('<H', data)[0], start))
         paths.append(str(path))
     subprocess.run([str(args.probe.resolve()), '--redraw-limiter-modules', *paths], check=True)
+
+    records, modules = [], []
+    for name, (source, start, end, offset, digest) in BOOLEAN_NOT_PRESETS.items():
+        data = (args.flowstone_root / 'Modules' / (source + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled Boolean Not module hash changed: ' + source)
+        record = data[offset:offset+7]
+        if len(record) != 7 or struct.unpack('<HHHB', record) != (256, 52, 36, 0):
+            raise ValueError('Unexpected native Boolean Not record: ' + name)
+        version = struct.unpack_from('<H', data)[0]
+        path = args.output / (name + ' Boolean Not.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', gui_record_document(record, name + ' Boolean Not', version))
+        records.append(str(path))
+        path = args.output / (name + ' complete Preset.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', wrap(data[:end], 'Preset', version, start))
+        modules.append(str(path))
+    subprocess.run([str(args.probe.resolve()), '--boolean-not-records', *records], check=True)
+    subprocess.run([str(args.probe.resolve()), '--boolean-not-presets', *modules], check=True)
 
     records, modules = [], []
     for source, (start, end, offset, digest) in MIDI_CC_MODULES.items():

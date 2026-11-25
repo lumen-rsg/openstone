@@ -3066,6 +3066,116 @@ void nativeRedrawLimiterModule(const QString& path) {
     std::cout<<path.toStdString()<<": complete native RedrawLimiter, held output, host suspension and disk save/reopen passed\n";
 }
 
+Bytes booleanNotDocument(int version) {
+    Bytes b; header(b,version); beginModule(b,"Root",1); beginModule(b,"Boolean inversion",6);
+    primitive(b,138,0,3); b.d(15); b.b(0); b.str("Value");
+    primitive(b,256,6,3,"Invert");
+    primitive(b,139,20,3); b.d(15); b.b(0); b.str("Inverted");
+    primitive(b,256,6,6,"Restore");
+    primitive(b,139,20,6); b.d(15); b.b(0); b.str("Original");
+    primitive(b,29,20,9,"Sentinel"); b.f(8); b.b(0); b.b(0); b.d(0x12345678);
+    b.w(4); wire(b,version,0,0,1,0); wire(b,version,1,0,2,0);
+    wire(b,version,1,0,3,0); wire(b,version,3,0,4,0); endModule(b);
+    b.w(0); endModule(b); b.w(0); b.b(0); return b;
+}
+void exerciseBooleanNot(Schematic& g,int source,int pulse,int inverted,int restored=0) {
+    using green::Value;
+    for (bool value : {false,true,false,true}) {
+        const auto expected = Value{!value};
+        g.setValue(source,value);
+        check(g.readValue(inverted)==expected && (!restored || g.readValue(restored)==Value{value}),
+              "Imported Not negates Boolean values and two inversions restore the original");
+        const auto before=g.inspectOutput(inverted).triggers;
+        g.fireTrigger(pulse); g.fireTrigger(pulse);
+        check(g.readValue(inverted)==expected && g.inspectOutput(inverted).triggers==before+2,
+              "Not forwards every incoming notification, including repeated equal values");
+    }
+}
+void importedBooleanNot() {
+    using enum PrimitiveKind;
+    using green::Value;
+    for (int version : {154,159,161,165,166,171,174,177}) {
+        const auto raw=booleanNotDocument(version); Session s; SchematicFile::importFlowStone(s,zip(raw),{});
+        auto& root=s.graph(); auto& g=*root.module(1);
+        check(g.nodes().size()==6 && g.links().size()==4 && g.nodes()[1].kind==Not && g.nodes()[3].kind==Not &&
+              g.nodes()[1].label=="Invert" && g.nodes()[1].x==6*16 && g.nodes()[1].y==3*16 &&
+              g.nodes()[5].localValue==Value{std::int32_t{0x12345678}},
+              "Payload-free Boolean Not preserves labels, positions, following records and original wires");
+        check(g.inputType(2,0)==green::Type::Boolean && g.outputType(2)==green::Type::Boolean &&
+              root.inputType(1,0)==green::Type::Boolean && root.outputType(1,0)==green::Type::Boolean &&
+              root.outputType(1,1)==green::Type::Boolean && root.readValue(1,0)==Value{true} && root.readValue(1,1)==Value{false},
+              "Fixed Boolean connectors and both typed module outputs resolve before the first notification");
+        const auto source=root.addNode(Boolean,0,0,true), pulse=root.addNode(Trigger,0,0);
+        root.connect({source,1,0},LinkNotification::Silent); root.connect({pulse,source,0},LinkNotification::Silent);
+        check(root.inspectOutput(1,0).triggers==0 && root.inspectOutput(1,1).triggers==0,
+              "Importing and silently wiring Not does not synthesize events");
+        const auto verify=[&](Schematic& graph) {
+            exerciseBooleanNot(graph,source,pulse,1);
+            check(graph.readValue(1,1)==graph.readValue(source),"Fan-out through a second Not reaches the second module output");
+            const auto a=graph.inspectOutput(1,0).triggers, b=graph.inspectOutput(1,1).triggers;
+            graph.fireTrigger(pulse);
+            check(graph.inspectOutput(1,0).triggers==a+1 && graph.inspectOutput(1,1).triggers==b+1,
+                  "Each Not fan-out produces exactly one event at each module output");
+        };
+        verify(root); const auto saved=SchematicFile::project(s); QTemporaryDir dir; const auto path=dir.filePath("boolean-not.ostone");
+        SchematicFile::write(path,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(path),{});
+        check(SchematicFile::project(reopened)==saved,"Boolean Not, its hierarchy, values and all links survive disk save/reopen");
+        verify(reopened.graph());
+        Bytes prefix; primitive(prefix,256,6,3,"Invert"); const auto at=raw.indexOf(prefix); check(at>0,"Locate Not common header");
+        for (int cut=0;cut<prefix.size();++cut) expectError(zip(raw.left(at+cut)),"Truncated");
+        Bytes link; wire(link,version,0,0,1,0); const auto wireAt=raw.indexOf(link,at+prefix.size()); check(wireAt>0,"Locate Not input wire");
+        auto bad=raw; bad[wireAt+6]=1; expectError(zip(bad),"connector index");
+        link.clear(); wire(link,version,1,0,2,0); const auto outputAt=raw.indexOf(link,wireAt); check(outputAt>0,"Locate Not output wire");
+        bad=raw; bad[outputAt+3]=1; expectError(zip(bad),"connector index");
+    }
+}
+void nativeBooleanNotRecord(const QString& path) {
+    using enum PrimitiveKind;
+    Session s; SchematicFile::importFlowStone(s,SchematicFile::read(path),{}); auto& g=*s.graph().module(1);
+    check(g.nodes().size()==1 && g.nodes()[0].kind==Not && g.nodes()[0].x==52*16 && g.nodes()[0].y==36*16 &&
+          g.nodes()[0].inputPorts().size()==1 && g.nodes()[0].outputPorts().size()==1 &&
+          g.inputType(1,0)==green::Type::Boolean && g.outputType(1)==green::Type::Boolean &&
+          g.readValue(1)==green::Value{true} && g.inspectOutput(1).triggers==0,
+          "Unchanged native Not has fixed Boolean ports and negates an unconnected false input without firing");
+    const auto source=g.addNode(Boolean,0,0,false), pulse=g.addNode(Trigger,0,0), restored=g.addNode(Not,0,0);
+    g.connect({source,1,0},LinkNotification::Silent); g.connect({pulse,source,0},LinkNotification::Silent);
+    g.connect({1,restored,0},LinkNotification::Silent); exerciseBooleanNot(g,source,pulse,1,restored);
+    const auto saved=SchematicFile::project(s); QTemporaryDir dir; const auto output=dir.filePath("native-boolean-not.ostone");
+    SchematicFile::write(output,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(output),{});
+    check(SchematicFile::project(reopened)==saved,"Unchanged native Not and its connected bench survive disk save/reopen");
+    exerciseBooleanNot(*reopened.graph().module(1),source,pulse,1,restored);
+    std::cout<<path.toStdString()<<": native Boolean Not record, values, notifications and disk save/reopen passed\n";
+}
+void nativeBooleanNotPreset(const QString& path) {
+    using enum PrimitiveKind;
+    Session s; SchematicFile::importFlowStone(s,SchematicFile::read(path),{}); auto& root=s.graph(); auto& g=*root.module(1);
+    check(g.nodes().size()==19 && g.links().size()==20 && g.nodes()[18].kind==Not &&
+          g.nodes()[11].kind==ModuleInput && g.nodes()[15].kind==TriggerSwitch &&
+          g.inputType(16,1)==green::Type::Boolean && g.inputType(19,0)==green::Type::Boolean,
+          "Import complete native Preset module with Boolean Not and its original interaction gates");
+    const auto source=root.addNode(Boolean,0,0,false), pulse=g.addNode(Trigger,0,0);
+    root.connect({source,1,1},LinkNotification::Silent);
+    // Supplemental data notifications exercise both original gates; their value and control routes stay intact.
+    g.connect({pulse,15,0},LinkNotification::Silent); g.connect({pulse,16,0},LinkNotification::Silent);
+    const auto verify=[&](Schematic& graph) {
+        auto& child=*graph.module(1);
+        for (bool interacting : {false,true,false,true}) {
+            graph.setValue(source,interacting);
+            check(child.readValue(19)==green::Value{!interacting},"Native Interact boundary drives the original Boolean Not");
+            const auto edit=child.inspectOutput(15).triggers, redraw=child.inspectOutput(16).triggers;
+            child.fireTrigger(pulse); child.fireTrigger(pulse);
+            check(child.inspectOutput(15).triggers==edit+(interacting?2:0) &&
+                  child.inspectOutput(16).triggers==redraw+(interacting?0:2),
+                  "Original Preset edit gate opens during interaction while its inverted redraw gate opens only when idle");
+        }
+    };
+    verify(root); const auto saved=SchematicFile::project(s); QTemporaryDir dir; const auto output=dir.filePath("native-preset-not.ostone");
+    SchematicFile::write(output,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(output),{});
+    check(SchematicFile::project(reopened)==saved,"Complete native Preset hierarchy, Boolean controls and all original links survive disk save/reopen");
+    verify(reopened.graph());
+    std::cout<<path.toStdString()<<": complete native Preset, complementary interaction gates and disk save/reopen passed\n";
+}
+
 void importedStateRecords() {
     for(int version:{154,159,166,171,177}) {
         for(bool layout:{false,true}) for(bool properties:{false,true}) for(int selected:{-1,0,1,42}) {
@@ -3775,6 +3885,10 @@ int main(int argc, char** argv) {
             for(int i=2;i<argc;++i)nativeShapeRecord(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--redraw-limiter-modules") {
             check(argc>2,"Native RedrawLimiter modules required"); for(int i=2;i<argc;++i) nativeRedrawLimiterModule(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--boolean-not-records") {
+            check(argc>2,"Native Boolean Not records required"); for(int i=2;i<argc;++i) nativeBooleanNotRecord(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--boolean-not-presets") {
+            check(argc>2,"Native Preset modules required"); for(int i=2;i<argc;++i) nativeBooleanNotPreset(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--after-duplicate-records") {
             check(argc>2,"Native After Duplicate records required"); for(int i=2;i<argc;++i) nativeAfterDuplicateRecord(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--bitmap-lifecycle-modules") {
@@ -3859,7 +3973,7 @@ int main(int argc, char** argv) {
                 Session s; SchematicFile::importFlowStone(s, SchematicFile::read(QString::fromLocal8Bit(argv[i])), {});
                 Session reopened; SchematicFile::loadProject(reopened, SchematicFile::project(s), {});
             }
-        } else { importsAndRoundTrips(); rejectsInvalidFiles(); codePorts(); valuesAndRuby(); linkedCodeSources(); compiledCaches(); valueLayouts(); propertyPanelLayouts(); genericMathRecords(); floatDeZipperRecord(); importedPanels(); legacyPanelControls(); inheritedViews(); propertyWireless(); guiDrawing(); guiSelectorAndRoutedLinks(); penAndFontProperties(); stringFormatsAndBrushes(); customRadialPaths(); importedShapes(); importedDrawingControls(); importedColorConversions(); importedViewCaches(); importedComparisons(); importedRouting(); importedStateRecords(); importedAudioRecords(); importedGeneratorRecords(); importedDropLists(); importedPresets(); importedRouters(); importedMidiCc(); importedBitmaps(); importedFileDialogs(); importedButtons(); importedAfterDuplicate(); importedHeldValues(); importedRedrawLimiters(); heldClose(); }
+        } else { importsAndRoundTrips(); rejectsInvalidFiles(); codePorts(); valuesAndRuby(); linkedCodeSources(); compiledCaches(); valueLayouts(); propertyPanelLayouts(); genericMathRecords(); floatDeZipperRecord(); importedPanels(); legacyPanelControls(); inheritedViews(); propertyWireless(); guiDrawing(); guiSelectorAndRoutedLinks(); penAndFontProperties(); stringFormatsAndBrushes(); customRadialPaths(); importedShapes(); importedDrawingControls(); importedColorConversions(); importedViewCaches(); importedComparisons(); importedRouting(); importedStateRecords(); importedAudioRecords(); importedGeneratorRecords(); importedDropLists(); importedPresets(); importedRouters(); importedMidiCc(); importedBitmaps(); importedFileDialogs(); importedButtons(); importedAfterDuplicate(); importedHeldValues(); importedRedrawLimiters(); importedBooleanNot(); heldClose(); }
         std::cout << "FlowStone import tests passed\n"; return 0;
     } catch (const std::exception& e) { std::cerr << e.what() << '\n'; return 1; }
 }
