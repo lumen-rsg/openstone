@@ -500,6 +500,11 @@ QJsonObject SchematicFile::encode(const Session::NodeCopy& copy, std::optional<d
         {"syncGroup", QString::number(copy.syncGroup)}
     };
     if (node.compareArrayElements) object.insert("compareArrayElements", true);
+    if (node.flowStoneRoutingBranches) {
+        QJsonObject routing{{"branches", *node.flowStoneRoutingBranches}};
+        if (node.kind == PrimitiveKind::LastSwitch) routing.insert("lastInput", node.lastSwitchInput);
+        object.insert("flowStoneRouting", routing);
+    }
     if (node.kind == PrimitiveKind::WaveFileArray && node.waveFile.excludeSamples && node.localValue) {
         const auto size = std::get<green::MemoryArray>(*node.localValue).entries().size();
         object.insert("value", encodeValue(green::MemoryArray(std::vector<green::Memory>(size))));
@@ -540,6 +545,10 @@ QJsonObject SchematicFile::encode(const Session::NodeCopy& copy, std::optional<d
             return QJsonArray{entry.first, encodeValue(entry.second)};
         })}};
         if (parameter->current) state.insert("current", encodeValue(*parameter->current));
+        if (parameter->flowStoneFloat)
+            state.insert("flowStoneFloat", QJsonObject{{"locked", parameter->flowStoneFloat->locked},
+                                                       {"order", real(parameter->flowStoneFloat->order)},
+                                                       {"inactive", parameter->flowStoneFloat->inactive}});
         object.insert("presetParameter", state);
     }
     if (node.anchorReference) object.insert("anchorReference", point(*node.anchorReference));
@@ -694,6 +703,13 @@ Session::NodeCopy SchematicFile::decode(const QJsonObject& object, int depth, st
     if (behavior == PrimitiveBehavior::PresetParameter && object.contains("presetParameter")) {
         const auto state = object["presetParameter"].toObject();
         auto& parameter = node.presetParameter.emplace();
+        if (state.contains("flowStoneFloat")) {
+            if (node.kind != PrimitiveKind::PresetFloat) invalid("native Preset Float state");
+            const auto native = state["flowStoneFloat"].toObject();
+            if (!native["locked"].isBool() || !native["inactive"].isBool()) invalid("native Preset flags");
+            parameter.flowStoneFloat = PresetParameterState::FlowStoneFloat{
+                native["locked"].toBool(), real(native["order"]), native["inactive"].toBool()};
+        }
         const auto decodeParameter = [&](QJsonValue value) {
             auto decoded = decodeValue(value.toObject());
             if (green::typeOf(decoded) != spec->outputs.front().type) invalid("preset value type");
@@ -715,6 +731,7 @@ Session::NodeCopy SchematicFile::decode(const QJsonObject& object, int depth, st
         (behavior == PrimitiveBehavior::BitmapOperation && !spec->outputs.empty() && spec->outputs.front().type != Type::Trigger);
     if (storedValue && (!node.localValue || green::typeOf(*node.localValue) != spec->outputs.front().type)) invalid("node value");
     if (node.kind == PrimitiveKind::Select && node.localValue && green::typeOf(*node.localValue) != Type::Boolean) invalid("Select condition state");
+    if (node.kind == PrimitiveKind::DropList && node.localValue && green::typeOf(*node.localValue) != Type::Int) invalid("Drop List selection state");
     if (node.localValue && (behavior == PrimitiveBehavior::MakePen || behavior == PrimitiveBehavior::MakeFont ||
                             behavior == PrimitiveBehavior::MakeSolid || behavior == PrimitiveBehavior::MakeBrush ||
                             behavior == PrimitiveBehavior::MakeStringFormat) &&
@@ -843,10 +860,22 @@ Session::NodeCopy SchematicFile::decode(const QJsonObject& object, int depth, st
     }
     const auto inputCount = hasExpandableInputs(node.kind)
         ? array(object["inputs"], "expandable inputs").size() : node.inputPorts().size();
+    if (object.contains("flowStoneRouting")) {
+        if (node.kind != PrimitiveKind::Multiplexer && node.kind != PrimitiveKind::LastSwitch)
+            invalid("native routing kind");
+        const auto routing = object["flowStoneRouting"].toObject();
+        node.flowStoneRoutingBranches = integer(routing["branches"], "native routing branches", 0, 4096);
+        if (node.kind == PrimitiveKind::LastSwitch) {
+            if (*node.flowStoneRoutingBranches != 2) invalid("native Last Switch branches");
+            node.lastSwitchInput = integer(routing["lastInput"], "native Last Switch input", 0, 1);
+        }
+    }
     if (hasExpandableInputs(node.kind) && inputCount <= firstExpandableInput(node.kind)) invalid("missing spare input");
     const auto outputCount = hasExpandableOutputs(node.kind)
         ? array(object["outputs"], "expandable outputs").size() : node.outputPorts().size();
     if (hasExpandableOutputs(node.kind) && outputCount == 0) invalid("missing spare output");
+    if (node.kind == PrimitiveKind::Multiplexer && node.flowStoneRoutingBranches &&
+        outputCount <= *node.flowStoneRoutingBranches) invalid("native routing outputs");
     node.inputTriggers.resize(inputCount);
     node.outputTriggers.resize(outputCount);
     return copy;

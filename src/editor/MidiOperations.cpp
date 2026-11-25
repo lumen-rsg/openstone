@@ -349,8 +349,10 @@ void Schematic::receiveMidiTrigger(SchematicNode& entry, int input)
     case MidiCC:
     case MidiCCStream:
         if (fields->status == controlChange && fields->data1 == readInt(1)) {
+            const auto previous = values[0] ? std::get<std::int32_t>(*values[0]) : 0;
             storeInt(0, fields->data2);
             if (entry.kind == MidiCC) {
+                if (previous != fields->data2) fireOutput(entry, 0);
                 fireOutput(entry, 1);
             } else {
                 if (state.streamController != fields->data1) state.streamCc = {};

@@ -683,6 +683,8 @@ struct SchematicNode {
     std::optional<std::int32_t> arrayDrawIndex;
     std::array<green::FloatArray, 2> arrayTransformResult;
     int lastSwitchInput = 0;
+    // Imported native routers retain populated sockets and their routing policy.
+    std::optional<int> flowStoneRoutingBranches;
     std::optional<MatrixState> matrix;
     std::optional<NetworkState> network;
     std::optional<SfzState> sfz;
@@ -1147,6 +1149,7 @@ private:
     [[nodiscard]] std::string presetParameterName(const SchematicNode& entry) const;
     [[nodiscard]] bool presetParameterAutomatable(const SchematicNode& entry) const;
     [[nodiscard]] bool presetParameterStored(const SchematicNode& entry) const;
+    [[nodiscard]] double presetParameterOrder(const SchematicNode& entry) const;
     void receivePresetUtility(SchematicNode& entry, int input);
     [[nodiscard]] PresetTable capturePresetTable(PresetParticipant manager, std::span<const PresetParticipant> participants,
                                                  int first, int last, std::vector<std::string> names);

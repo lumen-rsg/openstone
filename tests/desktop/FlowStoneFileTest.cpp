@@ -1,8 +1,10 @@
 #include "FlowStoneFile.hpp"
 #include "SchematicFile.hpp"
+#include "AudioPatch.hpp"
 #include "PanelRadialBrush.hpp"
 #include "PanelShapePath.hpp"
 #include <QColor>
+#include <QCryptographicHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QCoreApplication>
@@ -52,10 +54,11 @@ void beginModule(Bytes& b, const char* name, int count) {
     b.w(1); b.f(8); b.f(0); b.f(0); b.str(name); b.w(10); b.w(10); b.b(count);
 }
 void endModule(Bytes& b) { b.d(6); b.d(4); b.zeros(6); }
-void header(Bytes& b, int version) {
+void header(Bytes& b, int version, const std::vector<QByteArray>& images = {}) {
     b.w(version); b.d(1); b.d(1); b.w(0); b.zeros(3); b.b(1); b.zeros(12);
     if (version >= 171) b.d(0); // font resources
-    b.d(0); // images
+    b.d(images.size());
+    for (const auto& image : images) { b.d(image.size()); b.append(image); }
     if (version >= 161) { b.zeros(8 + 6 * 8); b.b(1); b.d(0); }
 }
 void primitive(Bytes& b, int type, int x, int y, const char* label = "") { b.w(type); b.w(x); b.w(y); b.str(label); }
@@ -769,6 +772,127 @@ void nativeDrawingRecord(const QString& path) {
 QByteArray texturePng() {
     return QByteArray::fromHex("89504e470d0a1a0a0000000d4948445200000002000000010806000000f4227f8a0000001149444154789c63e01291d338b16fcb7f000a22039e76e90c9f0000000049454e44ae426082");
 }
+Bytes bitmapDocument(int version, const QByteArray& image, bool reference = false, int index = 0,
+                     int targetInput = 3, bool layout = false) {
+    Bytes b; header(b, version, reference ? std::vector<QByteArray>{image} : std::vector<QByteArray>{});
+    beginModule(b, "Root", 1); beginModule(b, "Bitmap test", 6);
+    primitive(b, 105, 3, 4, "Image");
+    if (version >= 160) { b.b(1); b.b(layout); if (layout) connectorLayout(b, version); }
+    b.b(reference); if (reference) b.d(index); else { b.d(image.size()); b.append(image); }
+    // A following value proves the variable-length image record ends at the right byte.
+    primitive(b, 29, 5, 6, "Sentinel"); b.f(8); b.b(0); b.b(0); b.d(123);
+    primitive(b, 138, 0, 10); b.d(9); b.b(0); b.str(targetInput == 1 ? "Load" : "Clear");
+    primitive(b, 139, 10, 0); b.d(16); b.b(0); b.str("Image");
+    primitive(b, 139, 10, 10); b.d(3); b.b(0); b.str("Width");
+    primitive(b, 139, 10, 20); b.d(3); b.b(0); b.str("Height");
+    b.w(4); wire(b, version, 2, 0, 0, targetInput); wire(b, version, 0, 0, 3, 0);
+    wire(b, version, 0, 1, 4, 0); wire(b, version, 0, 2, 5, 0); endModule(b);
+    b.w(0); endModule(b); b.w(0); b.b(0); return b;
+}
+yellow::Bitmap bitmapValue(Schematic& graph, int id, int width, int height) {
+    const auto image = std::get<yellow::Bitmap>(graph.readValue(id));
+    check(image.width() == width && image.height() == height &&
+          graph.readValue(id, 1) == green::Value{std::int32_t(width)} &&
+          graph.readValue(id, 2) == green::Value{std::int32_t(height)}, "Bitmap pixels and Width/Height outputs agree");
+    return image;
+}
+void importedBitmaps() {
+    for (int version : {154,159,160,161,166,171,177}) for (bool reference : {false,true}) for (bool empty : {false,true}) {
+        const auto raw = bitmapDocument(version, empty ? QByteArray{} : texturePng(), reference, 0, 3, true);
+        const auto parsed = FlowStoneFile::decode(zip(raw));
+        check(parsed.root.children[0].children[0].nativeTag == 105 && parsed.root.children[0].links[0].input == 2,
+              "Bitmap keeps its native record identity and remaps Clear past the Paste socket");
+        Session s; SchematicFile::importFlowStone(s, zip(raw), {}); auto& graph = *s.graph().module(1);
+        check(graph.nodes()[0].kind == PrimitiveKind::Bitmap && graph.readValue(2) == green::Value{std::int32_t{123}},
+              "Import Bitmap and preserve following records");
+        const auto verify = [&](Schematic& root) {
+            auto& g = *root.module(1); const auto image = bitmapValue(g, 1, empty ? 0 : 2, empty ? 0 : 1);
+            if (!empty) check(image.pixelArgb(0,0) == 0x280a141e && image.pixelArgb(1,0) == 0xffc8beb4,
+                              "Decode straight alpha, RGB channel order and top-down image pixels exactly");
+            check(std::get<yellow::Bitmap>(root.readValue(1)) == image, "Native Bitmap output reaches the module boundary");
+            check(root.readValue(1,1) == green::Value{std::int32_t(image.width())} &&
+                  root.readValue(1,2) == green::Value{std::int32_t(image.height())}, "Native Width/Height links reach their boundaries");
+        };
+        verify(s.graph()); const auto saved = SchematicFile::project(s); QTemporaryDir dir;
+        const auto path = dir.filePath("bitmap.ostone"); SchematicFile::write(path, saved); Session reopened;
+        SchematicFile::loadProject(reopened, SchematicFile::read(path), {});
+        check(SchematicFile::project(reopened) == saved, "Bitmap pixels and native wiring survive disk save/reopen"); verify(reopened.graph());
+        const auto trigger = reopened.graph().addNode(PrimitiveKind::Trigger, 0, 0);
+        reopened.graph().connect({trigger, 1, 0}, LinkNotification::Silent);
+        const auto before = reopened.graph().module(1)->inspectOutput(1).triggers;
+        reopened.graph().fireTrigger(trigger); bitmapValue(*reopened.graph().module(1), 1, 0, 0);
+        check(reopened.graph().module(1)->inspectOutput(1).triggers == before + 1,
+              "A native Clear connection clears the image and notifies downstream after reopening");
+        // Dropping the cache remains persistent too.
+        Session cleared; SchematicFile::loadProject(cleared, SchematicFile::project(reopened), {});
+        bitmapValue(*cleared.graph().module(1), 1, 0, 0);
+    }
+    auto raw = bitmapDocument(177, texturePng(), true, -1);
+    Session empty; SchematicFile::importFlowStone(empty, zip(raw), {}); bitmapValue(*empty.graph().module(1), 1, 0, 0);
+    Bytes shared; header(shared,177,{QByteArray{},texturePng()});
+    beginModule(shared,"Root",1); beginModule(shared,"Shared images",2);
+    for (int i=0;i<2;++i) { primitive(shared,105,0,i); shared.b(0); shared.b(0); shared.b(1); shared.d(1); }
+    shared.w(0); endModule(shared); shared.w(0); endModule(shared); shared.w(0); shared.b(0);
+    Session references; SchematicFile::importFlowStone(references,zip(shared),{});
+    const auto first = bitmapValue(*references.graph().module(1),1,2,1);
+    check(bitmapValue(*references.graph().module(1),2,2,1) == first, "Repeated references resolve a nonzero image-table index");
+    Session referencesReopened; SchematicFile::loadProject(referencesReopened,SchematicFile::project(references),{});
+    check(bitmapValue(*referencesReopened.graph().module(1),1,2,1) == first &&
+          bitmapValue(*referencesReopened.graph().module(1),2,2,1) == first, "Shared-table pixels persist in both converted Bitmap nodes");
+    for (int index : {-2,1,std::numeric_limits<int>::max()})
+        expectError(zip(bitmapDocument(177, texturePng(), true, index)), "resource index");
+    expectError(zip(bitmapDocument(177, texturePng(), false, 0, 2)), "Bitmap Paste");
+    expectError(zip(bitmapDocument(177, texturePng(), false, 0, 4)), "connector index");
+    expectError(zip(bitmapDocument(159, "broken image")), "Bitmap image");
+    expectError(zip(bitmapDocument(177, "broken image", true)), "Bitmap resource image");
+    raw = bitmapDocument(159, texturePng()); const auto imageAt = raw.indexOf(texturePng());
+    check(imageAt > 0, "Find inline image");
+    for (int cut : {0,1,8,30,int(texturePng().size()-1)}) expectError(zip(raw.left(imageAt + cut)), "Truncated");
+    auto bad = raw; qToLittleEndian<quint32>(0xffffffff, bad.data() + imageAt - 4); expectError(zip(bad), "record count");
+    bad = raw; bad[imageAt - 5] = 2; expectError(zip(bad), "Boolean");
+    // Header dimensions are checked before allocating or inflating any image pixels.
+    auto huge = texturePng(); qToBigEndian<quint32>(1000000, huge.data()+16);
+    qToBigEndian<quint32>(1000000, huge.data()+20);
+    const auto crc = crc32(0,reinterpret_cast<const Bytef*>(huge.constData()+12),17); qToBigEndian<quint32>(crc,huge.data()+29);
+    expectError(zip(bitmapDocument(177, huge)), "Bitmap image size");
+    // Path is lazy; only the native Load input invokes the host's image loader.
+    int loads = 0;
+    const yellow::Bitmap replacement{1,2,{0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88}};
+    const auto loader = [&](std::string_view path) {
+        check(path == "replacement.bmp", "Native Load reads the current Path input"); ++loads; return replacement;
+    };
+    Session loaded(loader); SchematicFile::importFlowStone(loaded, zip(bitmapDocument(177, texturePng(), false, 0, 1)), {});
+    auto& g = *loaded.graph().module(1); const auto path = g.addNode(PrimitiveKind::String,0,0,std::string{"replacement.bmp"});
+    g.connect({path,1,0}); check(loads == 0, "Import and Path changes do not load an external image");
+    const auto pulse = loaded.graph().addNode(PrimitiveKind::Trigger,0,0);
+    loaded.graph().connect({pulse,1,0},LinkNotification::Silent); loaded.graph().fireTrigger(pulse);
+    check(loads == 1 && bitmapValue(g,1,1,2) == replacement, "Native Load wiring updates image pixels and both dimensions");
+    Session opened(loader); SchematicFile::loadProject(opened,SchematicFile::project(loaded),{});
+    check(loads == 1 && bitmapValue(*opened.graph().module(1),1,1,2) == replacement, "Reopening uses saved pixels without reloading the source path");
+    opened.graph().fireTrigger(pulse); check(loads == 2, "Native Load still invokes the host loader after reopening");
+}
+void nativeBitmapRecord(const QString& path) {
+    using enum PrimitiveKind;
+    Session s; SchematicFile::importFlowStone(s, SchematicFile::read(path), {}); auto& graph = *s.graph().module(1);
+    check(graph.nodes().size() == 1 && graph.nodes()[0].kind == Bitmap, "Import unchanged bundled Bitmap record");
+    const bool detuner = path.contains("Detuner");
+    const auto verify = [&](Schematic& root) {
+        const auto image = bitmapValue(*root.module(1), 1, 32, 32); const auto pixels = image.rgba();
+        const auto digest = QCryptographicHash::hash(QByteArrayView(reinterpret_cast<const char*>(pixels.data()), pixels.size()),
+                                                    QCryptographicHash::Sha256).toHex();
+        check(digest == (detuner ? "2e2496a24dab822bf7fa438a32a035f573ab3c1b0e3b485b9e3bb71a35c179b4" :
+                                  "50326039dff849e5b0c9f4dbba0b867838923e475d7b7d0a8d6286cdd8689a3e"),
+              "Bundled Bitmap matches independently decoded RGBA pixels");
+    };
+    verify(s.graph()); const auto saved = SchematicFile::project(s); QTemporaryDir dir;
+    const auto target = dir.filePath("native-bitmap.ostone"); SchematicFile::write(target, saved); Session reopened;
+    SchematicFile::loadProject(reopened, SchematicFile::read(target), {});
+    check(SchematicFile::project(reopened) == saved, "Bundled image pixels persist after saving and reopening"); verify(reopened.graph());
+    const auto clear = reopened.graph().module(1)->addNode(Trigger, 0, 0);
+    reopened.graph().module(1)->connect({clear,1,2}, LinkNotification::Silent);
+    reopened.graph().module(1)->fireTrigger(clear); bitmapValue(*reopened.graph().module(1), 1, 0, 0);
+    std::cout << path.toStdString() << ": unchanged Bitmap record, exact pixels, Clear and disk save/reopen passed\n";
+}
 void brushPayload(Bytes& b, int version, int kind, bool ellipse = false) {
     if (version < 167) { b.f(.1f); b.d(0xff000000); b.d(0); return; }
     b.d(kind);
@@ -1481,6 +1605,162 @@ void importedAudioRecords() {
     expectError(zip(bad),"connector index");
 }
 
+double generatorHarmonics(bool triangle, double phase, double frequency) {
+    const int harmonics = std::min(1023, int(1 / std::abs(frequency)));
+    double result = 0;
+    for (int h = 1; h <= harmonics; ++h) {
+        if (triangle && h % 2 == 0) continue;
+        const double weight = triangle ? (h % 4 == 1 ? 1. : -1.) / (h * h) : 1. / h;
+        result += weight * std::sin(2 * std::acos(-1.) * h * phase);
+    }
+    return result;
+}
+
+void generatorRecordRoundTrip(const QByteArray& archive) {
+    using enum PrimitiveKind;
+    Session session; SchematicFile::importFlowStone(session, archive, {});
+    session.enterModule(1); auto& graph = session.graph(); const auto kind = graph.nodes()[0].kind;
+    const bool oscillator = kind == Sawtooth || kind == DoubleSawtooth || kind == Triangle || kind == DoubleTriangle;
+    const bool wide = kind == DoubleSawtooth || kind == DoubleTriangle;
+    check(oscillator || kind == Ramp || kind == Impulse || kind == Glide, "Expected an imported signal generator");
+    const auto signal = wide ? std::string("streamdouble") : std::string("stream");
+    const auto mono = wide ? std::string("monodouble") : std::string("mono");
+    const auto code = [&](const std::string& source) {
+        const int id = graph.addNode(DspCode, 0, 0); graph.setDspDraft(id, source); session.compileDsp(id); return id;
+    };
+    if (oscillator) {
+        const int source = code(signal + "out freq;" + signal + R"(out phase;streamboolout sync;float n;
+            freq=n<12 ? .25 : n==13 ? 1 : .5;
+            phase=n<3 ? .125 : n<6 ? .375 : n<8 ? 1.125 : .125;
+        )" + (wide ? "phase+=0.0000000000009094947017729282379150390625;" : "") + R"(
+            sync=n<3 ? false : n<6 ? true : n<8 ? false : n<10;
+            n+=1;
+        )");
+        for (int port = 0; port < 3; ++port) graph.connect({source, 1, port, port});
+    } else if (kind == Ramp) {
+        const int source = code(R"(streamout freq;streamboolout sync;float n;
+            freq=n<9 ? .5 : n<12 ? 1 : 0;
+            sync=n<3 ? false : n<6 ? true : n<8 ? false : n<10;n+=1;)");
+        graph.connect({source, 1, 0}); graph.connect({source, 1, 1, 1});
+    } else if (kind == Glide) {
+        const int source = code(R"(streamout target;streamout length;float n;
+            target=n<19 ? .25 : n<270 ? 1.25 : n<700 ? -.75 : .5;
+            length=n<150 ? 512 : n<370 ? 0 : n<700 ? 256 : 0;n+=1;)");
+        graph.connect({source, 1, 0}); graph.connect({source, 1, 1, 1});
+    }
+    const int tap = code(mono + "in x;" + mono + "out y;y=x;"); graph.connect({1, tap, 0}); session.navigate(0);
+    const auto verify = [&](Schematic& root) {
+        auto& g = *root.module(1); const auto numeric = wide ? green::Type::MonoDouble : green::Type::Mono;
+        check(g.nodes()[0].kind == kind && g.outputType(1) == numeric, "Imported generator retains its primitive and output precision");
+        const auto& ports = g.nodes()[0].inputPorts();
+        check(ports.size() == (oscillator ? 3 : kind == Impulse ? 0 : 2), "Generator retains its native input count");
+        if (kind != Impulse) check(g.inputType(1, 0) == numeric, "Generator numeric input specializes with its output");
+        if (oscillator || kind == Ramp)
+            check(g.inputType(1, oscillator ? 2 : 1) == green::Type::MonoBoolean, "Imported hard sync is a Boolean stream");
+        if (oscillator) check(g.inputType(1, 1) == numeric, "Imported oscillator Phase uses the same precision as Freq");
+        if (kind == Glide) check(g.inputType(1, 1) == numeric, "Imported Glide length is a sample-rate Stream, not a Green time input");
+        const int frames = oscillator ? 15 : kind == Ramp ? 14 : kind == Glide ? 804 : 65;
+        const auto baseline = g.captureDsp(tap, frames, 1).front();
+        if (oscillator) {
+            constexpr std::array phases{.125,.25,.375,.375,.5,.625,.5,.625,.125,.25,.375,.5,.625,.875,.375};
+            const bool triangle = kind == Triangle || kind == DoubleTriangle;
+            // The core tests cover absolute wavetable normalization. Here one
+            // calibration isolates the imported harmonic content and port routing.
+            const double gain = baseline[0] / generatorHarmonics(triangle, phases[0] + (wide ? 0x1p-40 : 0), .25);
+            check(gain > .5 && gain < 1, "Imported bandlimited waveform has a nonzero normalized gain");
+            for (int n = 0; n < frames; ++n) {
+                const auto frequency = n < 12 ? .25 : n == 13 ? 1 : .5;
+                const double expected = gain * generatorHarmonics(triangle, phases[n] + (wide ? 0x1p-40 : 0), frequency);
+                check(std::abs(baseline[n] - expected) < (wide ? 2e-14 : 2e-6),
+                      "Imported oscillator preserves waveform, harmonic selection, wrapped phase, sync edges and double phase precision");
+            }
+        } else if (kind == Ramp) {
+            check(baseline == std::vector{0.,.25,.5,0.,.25,.5,.75,0.,0.,.25,.75,.25,.75,.75},
+                  "Imported Ramp starts at zero, wraps and resets only on rising sync edges");
+        } else if (kind == Impulse) {
+            auto expected = std::vector<double>(frames); expected[0] = 1;
+            check(baseline == expected, "Imported Impulse emits one at startup and zero on every later sample");
+        } else {
+            for (int n = 0; n < frames; ++n) {
+                const double expected = n < 384 ? .25 + std::max(0, n - 127) / 512.
+                    : n < 768 ? .75 - std::min(256, n - 383) * 3. / 512 : .5;
+                check(baseline[n] == expected, "Imported Glide adopts its initial target and follows rising, falling and zero-length steps");
+            }
+        }
+        for (std::size_t block : {3, 7, 64, 257})
+            check(g.captureDsp(tap, frames, std::min(block, std::size_t(frames))).front() == baseline,
+                  "Imported generator state is independent of buffer boundaries");
+    };
+    verify(session.graph()); const auto saved = SchematicFile::project(session); QTemporaryDir dir;
+    const auto path = dir.filePath("generator.ostone"); SchematicFile::write(path, saved);
+    Session reopened; SchematicFile::loadProject(reopened, SchematicFile::read(path), {});
+    check(SchematicFile::project(reopened) == saved, "Imported generators, precision, controls and wiring survive disk save/reopen");
+    verify(reopened.graph());
+}
+
+void importedGeneratorRecords() {
+    using enum PrimitiveKind;
+    for (int version : {154, 159, 166, 171, 177}) {
+        for (const auto [tag, kind] : std::array<std::pair<int, PrimitiveKind>, 10>{{
+                 {27, Sawtooth}, {72, Sawtooth}, {157, Sawtooth}, {196, Sawtooth}, {1149, DoubleSawtooth},
+                 {165, Triangle}, {1150, DoubleTriangle}, {32, Ramp}, {36, Impulse}, {533, Glide}}}) {
+            const auto record = audioRecordDocument(version, tag);
+            const auto decoded = FlowStoneFile::decode(zip(record));
+            check(decoded.root.children[0].children[0].node.kind == kind, "Native generator ID and legacy alias map to the right runtime");
+            generatorRecordRoundTrip(zip(record));
+            Bytes bad; header(bad, version); beginModule(bad, "Root", 1); beginModule(bad, "Invalid generator", 2);
+            primitive(bad, tag, 0, 0); primitive(bad, 29, 0, 0); bad.f(8); bad.zeros(2); bad.d(0);
+            bad.w(1); wire(bad, version, 1, 0, 0, int(openstone::primitive(kind).inputs.size())); endModule(bad);
+            bad.w(0); endModule(bad); bad.w(0); bad.b(0); expectError(zip(bad), "connector index");
+            const auto& truncated = record;
+            Bytes prefix; primitive(prefix, tag, 2, 3); const auto offset = truncated.indexOf(prefix);
+            check(offset > 0, "Locate generator record"); expectError(zip(truncated.left(offset + 6)), "Truncated");
+        }
+    }
+}
+
+void nativeGeneratorRecord(const QString& path) {
+    generatorRecordRoundTrip(SchematicFile::read(path));
+    std::cout << path.toStdString() << ": unchanged generator record, sample checks and disk save/reopen passed\n";
+}
+
+void nativeSquareModule(const QString& path) {
+    using enum PrimitiveKind;
+    Session session; SchematicFile::importFlowStone(session, SchematicFile::read(path), {}); auto& graph = session.graph();
+    const auto& module = graph.nodes()[0]; check(module.moduleOutputs.size() == 1, "Native Square has one output boundary");
+    const int nativeInputs = module.moduleInputs.size(); check(nativeInputs == 2 || nativeInputs == 3, "Native Square has frequency/phase and optional sync inputs");
+    check(std::ranges::count_if(graph.module(1)->nodes(), [](const auto& n) { return n.kind == Sawtooth; }) == 2,
+          "Native Square retains both original Sawtooth records");
+    const auto code = [&](const std::string& text) { const int id = graph.addNode(DspCode, 0, 0); graph.setDspDraft(id, text); session.compileDsp(id); return id; };
+    const int source = code(R"(monoout freq;monoout phase;monoboolout sync;float n;
+        freq=n<12 ? .25 : n==13 ? 1 : .5;
+        phase=n<3 ? .125 : n<6 ? .375 : n<8 ? 1.125 : .125;
+        sync=n<3 ? false : n<6 ? true : n<8 ? false : n<10;n+=1;)");
+    const int tap = code("monoin x;monoout y;y=x;");
+    for (int input = 0; input < nativeInputs; ++input) graph.connect({source, 1, input, input});
+    graph.connect({1, tap, 0});
+    const auto verify = [&](Schematic& g) {
+        const auto actual = g.captureDsp(tap, 15, 1).front(); std::vector<double> shape(15);
+        double phase = 0; bool previous = false;
+        for (int n = 0; n < 15; ++n) {
+            const double freq = n < 12 ? .25 : n == 13 ? 1 : .5;
+            const double offset = n < 3 ? .125 : n < 6 ? .375 : n < 8 ? 1.125 : .125;
+            const bool sync = nativeInputs == 3 && (n < 3 ? false : n < 6 ? true : n < 8 ? false : n < 10);
+            if (sync && !previous) phase = 0; previous = sync;
+            shape[n] = generatorHarmonics(false, phase + offset, freq) - generatorHarmonics(false, phase + offset + .5, freq);
+            phase += freq * .5; phase -= std::floor(phase);
+        }
+        const double gain = actual[0] / shape[0]; check(gain > .5 && gain < 1, "Native Square has the expected Sawtooth normalization");
+        for (int n = 0; n < 15; ++n) check(std::abs(actual[n] - gain * shape[n]) < 3e-6,
+            "Unchanged Square sums phase-shifted Sawtooths with its negative gain and native sync routing");
+        for (std::size_t block : {3, 7, 15}) check(g.captureDsp(tap, 15, block).front() == actual, "Native Square rendering is independent of buffer boundaries");
+    };
+    verify(graph); const auto saved = SchematicFile::project(session); QTemporaryDir dir; const auto file = dir.filePath("square.ostone");
+    SchematicFile::write(file, saved); Session reopened; SchematicFile::loadProject(reopened, SchematicFile::read(file), {});
+    check(SchematicFile::project(reopened) == saved, "Complete native Square retains its original graph through disk save/reopen"); verify(reopened.graph());
+    std::cout << path.toStdString() << ": unchanged Square module, phase and sync routes, sample checks and disk save/reopen passed\n";
+}
+
 void nativeAudioRecord(const QString& path) {
     audioRecordRoundTrip(SchematicFile::read(path));
     std::cout<<path.toStdString()<<": unchanged audio record, buffer-independent rendering and disk save/reopen passed\n";
@@ -1553,6 +1833,645 @@ void nativeFmDemodulator(const QString& path) {
     std::cout<<"FM De-modulator: complete unchanged module, delayed sample products and disk save/reopen passed\n";
 }
 
+QByteArray dropListDocument(int version, std::int32_t selected, bool wired) {
+    Bytes b; header(b, version); beginModule(b, "Root", 1); beginModule(b, "Drop List", wired ? 12 : 1);
+    primitive(b, 237, 2, 3); b.d(std::bit_cast<quint32>(selected));
+    if (wired) {
+        nativePanel(b, version < 159 ? 16 : 1191, version);
+        for (float value : {1.25f, 2.5f}) { primitive(b, 11, 0, 0); b.f(8); b.zeros(2); b.f(value); }
+        primitive(b, 88, 0, 0); b.f(8); b.zeros(2); b.str("Zero,One,Two");
+        primitive(b, 138, 0, 6, "Open"); b.d(9); b.b(0); b.str("Open");
+        primitive(b, 29, 0, 0); b.f(8); b.zeros(2); b.d(quint32(-1));
+        primitive(b, 88, 0, 0); b.f(8); b.zeros(2); b.str("2");
+        for (int port = 0; port < 4; ++port) {
+            primitive(b, 139, 20, 10 + port * 2); b.d(port == 0 ? 1 : port == 3 ? 9 : 3); b.b(0); b.str("");
+        }
+        b.w(11);
+        for (int input = 0; input < 7; ++input) wire(b, version, input + 1, 0, 0, input);
+        for (int output = 0; output < 4; ++output) wire(b, version, 0, output, output + 8, 0);
+        panelFooter(b, 254);
+    } else { b.w(0); endModule(b); }
+    b.w(0); endModule(b); b.w(0); b.b(0); return b;
+}
+
+void dropListStateRoundTrip(const QByteArray& archive, std::int32_t selected) {
+    using enum PrimitiveKind;
+    Session session; SchematicFile::importFlowStone(session, archive, {});
+    const auto verify = [&](Session& s) {
+        auto& g = *s.graph().module(1);
+        check(g.nodes()[0].kind == DropList && g.nodes()[0].localValue == green::Value{selected} &&
+              g.readValue(1, 1) == green::Value{selected} && g.readValue(1) == green::Value{std::string{}},
+              "Native Drop List reads its signed saved index and an empty text for a missing option list");
+    };
+    verify(session); const auto saved = SchematicFile::project(session); QTemporaryDir dir; const auto file = dir.filePath("drop-state.ostone");
+    SchematicFile::write(file, saved); Session reopened; SchematicFile::loadProject(reopened, SchematicFile::read(file), {});
+    check(SchematicFile::project(reopened) == saved, "Native Drop List signed selection survives disk save/reopen without input events"); verify(reopened);
+}
+
+void dropListConnectedRoundTrip(const QByteArray& archive) {
+    using enum PrimitiveKind;
+    Session session; SchematicFile::importFlowStone(session, archive, {}); auto& graph = *session.graph().module(1);
+    check(graph.nodes()[0].kind == DropList && graph.nodes()[0].inputPorts().size() == 7 && graph.nodes()[0].outputPorts().size() == 4,
+          "Drop List imports its seven native inputs and four outputs");
+    constexpr std::array inputs{green::Type::View,green::Type::Float,green::Type::Float,green::Type::String,
+                                green::Type::Trigger,green::Type::Int,green::Type::String};
+    constexpr std::array outputs{green::Type::String,green::Type::Int,green::Type::Int,green::Type::Trigger};
+    for (int i = 0; i < 7; ++i) check(graph.inputType(1, i) == inputs[i], "Native Drop List input order is View/X/Y/List/Open/Check/Style");
+    for (int i = 0; i < 4; ++i) check(graph.outputType(1, i) == outputs[i], "Native Drop List output order is Text/Index/Count/Canceled");
+    const int trigger = session.graph().addNode(Trigger, 0, 0); session.graph().connect({trigger, 1, 0}, LinkNotification::Silent);
+    const auto exercise = [&](Schematic& root) {
+        auto& g = *root.module(1);
+        const auto pulses = [&] { return std::array{g.inspectOutput(1,0).triggers,g.inspectOutput(1,1).triggers,
+                                                  g.inspectOutput(1,2).triggers,g.inspectOutput(1,3).triggers}; };
+        const auto selected = [&](int index, const char* text) {
+            const auto localIndex=std::get<std::int32_t>(g.readValue(1,1)), outerIndex=std::get<std::int32_t>(root.readValue(1,1));
+            const auto localText=std::get<std::string>(g.readValue(1)), outerText=std::get<std::string>(root.readValue(1));
+            check(localIndex==index && localText==text && outerIndex==index && outerText==text,
+                  ("Drop List expected "+std::to_string(index)+":"+text+", local="+std::to_string(localIndex)+":"+localText+
+                   ", module="+std::to_string(outerIndex)+":"+outerText).c_str());
+        };
+        const auto before = pulses();
+        g.setValue(7,std::int32_t{-1}); g.setValue(5,std::string{"Reset"});
+        g.setValue(5,std::string{"Red,Green,Blue"}); selected(0,"Red");
+        check(pulses() == before && root.readValue(1,2) == green::Value{std::int32_t{3}}, "Native List changes reset the index and update the count without publishing pulses");
+        g.setValue(7,std::int32_t{1}); selected(1,"Green");
+        g.setValue(7,std::int32_t{99}); selected(1,"Green");
+        check(pulses() == before, "Native Check changes select valid indices silently and ignore invalid indices");
+        g.setValue(7,std::int32_t{1}); g.setValue(8,std::string{"2"}); root.fireTrigger(trigger);
+        const auto request = root.pendingDropList();
+        check(request && request->view.isSamePanel(g.frontPanel()->view) && request->ownerPath == std::vector<int>{1} &&
+              request->position == green::Point{1.25f,2.5f} && request->checkedIndex == 1 &&
+              request->layout == DropListLayout::FixedColumns && request->rowsPerColumn == 2 &&
+              request->contents.options == std::vector<std::string>{"Red","Green","Blue"},
+              "Native Open retains the View, coordinates, check input, style and ordered menu items");
+        root.finishDropList(request->token,2); selected(2,"Blue");
+        const auto chosen = pulses();
+        check(chosen == std::array{before[0]+1,before[1]+1,before[2],before[3]} && !root.pendingDropList(),
+              "A native menu selection sends exactly one Text and one Index pulse");
+        g.setValue(7,std::int32_t{99}); selected(2,"Blue"); g.setValue(8,std::string{"Scroll"}); root.fireTrigger(trigger);
+        check(root.pendingDropList()->layout == DropListLayout::Scroll, "Imported Drop List accepts a live Scroll style"); selected(0,"Red");
+        const auto token = root.pendingDropList()->token; root.finishDropList(request->token,std::nullopt);
+        check(root.pendingDropList() && root.pendingDropList()->token == token, "Stale menu completions cannot close a newer imported menu");
+        root.finishDropList(token,std::nullopt); selected(0,"Red");
+        check(pulses() == std::array{chosen[0],chosen[1],chosen[2],chosen[3]+1},
+              "Native Cancel sends only Canceled and retains the silent index reset made by Open");
+        // Native values are looked up in the current list even when the popup
+        // snapshot was opened before that list changed.
+        root.fireTrigger(trigger); const auto changing = root.pendingDropList()->token;
+        g.setValue(5,std::string{"New,Names"}); root.finishDropList(changing,1); selected(1,"Names");
+        root.fireTrigger(trigger); const auto removed = root.pendingDropList()->token;
+        g.setValue(5,std::string{"Only"}); const auto invalidBefore = pulses(); root.finishDropList(removed,1); selected(0,"Only");
+        check(pulses() == std::array{invalidBefore[0],invalidBefore[1],invalidBefore[2],invalidBefore[3]+1},
+              "Removing a pending native option reports cancellation without publishing a stale selection");
+        g.setValue(5,std::string{"Alpha,-----,>>,More,<<,Beta,Gamma,>>"});
+        check(root.readValue(1,2) == green::Value{std::int32_t{5}},
+              "Native Number of Options counts the separator and submenu header records");
+        g.setValue(7,std::int32_t{-1}); selected(-1,"More");
+        g.setValue(7,std::int32_t{1}); selected(-1,"More");
+        root.fireTrigger(trigger);
+        const auto nested = root.pendingDropList();
+        check(nested && nested->contents.options == std::vector<std::string>{"Alpha","","Beta","Gamma"} &&
+              nested->contents.menus.size()==2 && nested->contents.menus[0].size()==3 &&
+              nested->contents.menus[0][1].optionIndex==-1 && nested->contents.menus[0][2].submenu==1 &&
+              nested->contents.menus[1][0].optionIndex==2 && nested->contents.menus[1][1].optionIndex==3,
+              "Imported submenus preserve native item IDs with the separator slot reserved");
+        const auto separatorBefore = pulses(); root.finishDropList(nested->token,1);
+        check(pulses() == std::array{separatorBefore[0],separatorBefore[1],separatorBefore[2],separatorBefore[3]+1},
+              "A reserved separator ID cannot become a native selection");
+        root.fireTrigger(trigger); root.finishDropList(root.pendingDropList()->token,2); selected(2,"Beta");
+        g.setValue(5,std::string{}); root.fireTrigger(trigger);
+        check(!root.pendingDropList() && root.readValue(1,2) == green::Value{std::int32_t{0}}, "An empty imported list does not open a popup");
+        g.setValue(5,std::string{"Red,Green,Blue"}); g.setValue(7,std::int32_t{1}); root.fireTrigger(trigger);
+        root.finishDropList(root.pendingDropList()->token,2); selected(2,"Blue");
+    };
+    exercise(session.graph()); const auto saved = SchematicFile::project(session); QTemporaryDir dir; const auto file = dir.filePath("drop-list.ostone");
+    SchematicFile::write(file,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(file),{});
+    check(SchematicFile::project(reopened) == saved && reopened.graph().readValue(1,1) == green::Value{std::int32_t{2}} &&
+          reopened.graph().readValue(1) == green::Value{std::string{"Blue"}} && !reopened.graph().pendingDropList(),
+          "Native Drop List selection, all connections and View controls survive disk save/reopen without a transient popup");
+    exercise(reopened.graph());
+    reopened.graph().module(1)->setValue(5,std::string{"Alpha,-----,>>,More,<<,Beta,Gamma,>>"});
+    reopened.graph().fireTrigger(trigger); reopened.graph().finishDropList(reopened.graph().pendingDropList()->token,2);
+    const auto nested = SchematicFile::project(reopened); const auto nestedFile = dir.filePath("native-submenu.ostone");
+    SchematicFile::write(nestedFile,nested); Session nestedCopy; SchematicFile::loadProject(nestedCopy,SchematicFile::read(nestedFile),{});
+    check(SchematicFile::project(nestedCopy)==nested && nestedCopy.graph().readValue(1)==green::Value{std::string{"Beta"}} &&
+          nestedCopy.graph().readValue(1,1)==green::Value{std::int32_t{2}} && nestedCopy.graph().readValue(1,2)==green::Value{std::int32_t{5}},
+          "Native submenu selection preserves its reserved separator ID and record count through disk save/reopen");
+}
+
+void importedDropLists() {
+    for (int version : {154,159,166,171,177}) {
+        for (auto index : {std::int32_t{-1},std::int32_t{0},std::int32_t{2},std::int32_t{42},
+                           std::numeric_limits<std::int32_t>::min(),std::numeric_limits<std::int32_t>::max()})
+            dropListStateRoundTrip(zip(dropListDocument(version,index,false)),index);
+        dropListConnectedRoundTrip(zip(dropListDocument(version,1,true)));
+        const auto raw = dropListDocument(version,0,false);
+        Bytes marker; primitive(marker,237,2,3); const auto at = raw.indexOf(marker);
+        for (int bytes = 0; bytes < 4; ++bytes) expectError(zip(raw.left(at+7+bytes)),"Truncated");
+        auto bad = dropListDocument(version,0,true);
+        // First wire is MGUI View -> Drop List View. Reject rather than discard
+        // an extra native input or output connector.
+        Bytes prefix; prefix.w(11); Bytes link; wire(link,version,1,0,0,0); prefix.append(link);
+        const auto linkAt = bad.indexOf(prefix); check(linkAt > 0,"Locate native Drop List wire");
+        bad[linkAt+2+6] = char(7); expectError(zip(bad),"connector index");
+        bad = dropListDocument(version,0,true); bad[linkAt+2+3] = char(4); expectError(zip(bad),"connector index");
+    }
+    Session source; SchematicFile::importFlowStone(source,zip(dropListDocument(177,1,false)),{});
+    auto doc = QJsonDocument::fromJson(SchematicFile::project(source)).object(); auto root = doc["root"].toObject();
+    auto modules = root["nodes"].toArray(); auto module = modules[0].toObject(); auto children = module["nodes"].toArray();
+    auto node = children[0].toObject(); node["value"] = QJsonObject{{"type",int(green::Type::String)},{"data","bad"}};
+    children[0] = node; module["nodes"] = children; modules[0] = module; root["nodes"] = modules; doc["root"] = root;
+    Session retained; retained.graph().addNode(PrimitiveKind::Int,0,0,std::int32_t{42}); const auto before = SchematicFile::project(retained);
+    bool touched = false, rejected = false;
+    try { SchematicFile::loadProject(retained,QJsonDocument(doc).toJson(),[&] { touched=true; }); }
+    catch (const std::exception& e) { rejected = std::string(e.what()).find("Drop List selection state") != std::string::npos; }
+    check(rejected && !touched && SchematicFile::project(retained) == before,"Malformed saved Drop List selection rejects atomically");
+}
+
+void nativeDropListRecord(const QString& path) {
+    const auto index = path.contains("Detuner") ? 5 : path.contains("PWM") ? 1 : 0;
+    dropListStateRoundTrip(SchematicFile::read(path),index);
+    std::cout << path.toStdString() << ": unchanged Drop List record, saved index and disk save/reopen passed\n";
+}
+
+void nativeDropListItems(const QString& path) {
+    using enum PrimitiveKind;
+    const bool detuner = path.contains("Detuner"), lfo = path.contains("Multi LFO");
+    const std::vector<std::string> options = detuner ? std::vector<std::string>{"+5","+4","+3","+2","+1","+0","-1","-2","-3","-4","-5"}
+        : lfo ? std::vector<std::string>{"Sine","Sawtooth","Triangle","Square","Noise"}
+              : std::vector<std::string>{"By Frequency","By Zero Cross"};
+    const int initial = detuner ? 5 : 0;
+    Session session; SchematicFile::importFlowStone(session,SchematicFile::read(path),{}); auto& g = *session.graph().module(1);
+    check(g.nodes().size() == 3 && g.nodes()[0].kind == String && g.nodes()[2].kind == DropList &&
+          g.readValue(3,1) == green::Value{std::int32_t{initial}} && g.readValue(3) == green::Value{options[initial]} &&
+          session.graph().readValue(1) == green::Value{std::int32_t{initial}},
+          "Bundled Items, Index boundary and Drop List records retain their original strings and saved selection");
+    const int gui = g.addNode(ModuleGui,0,0), open = g.addNode(Trigger,0,0);
+    g.connect({gui,3,0},LinkNotification::Silent); g.connect({open,3,4},LinkNotification::Silent);
+    const auto exercise = [&](Schematic& root) {
+        auto& graph = *root.module(1); graph.fireTrigger(open);
+        check(root.pendingDropList() && root.pendingDropList()->contents.options == options,"Bundled option strings generate the expected ordered menu");
+        root.finishDropList(root.pendingDropList()->token,int(options.size()-1));
+        check(graph.readValue(3) == green::Value{options.back()} && root.readValue(1) == green::Value{std::int32_t(options.size()-1)},
+              "Bundled Drop List publishes a selected item through its native Index boundary");
+    };
+    exercise(session.graph()); const auto saved = SchematicFile::project(session); QTemporaryDir dir; const auto file = dir.filePath("native-drop-list.ostone");
+    SchematicFile::write(file,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(file),{});
+    check(SchematicFile::project(reopened) == saved && reopened.graph().readValue(1) == green::Value{std::int32_t(options.size()-1)},
+          "Bundled Drop List records, original options, boundary routing and selected index survive disk save/reopen");
+    exercise(reopened.graph());
+    std::cout << path.toStdString() << ": unchanged native Items/Index/Drop List records, headless menu and disk save/reopen passed\n";
+}
+
+
+
+
+struct MidiCcBench {
+    int controller, counter, valueOrder, eventValue;
+};
+MidiCcBench wireMidiCcBench(Schematic& graph, int cc, int midiTarget, int midiInput, int ccTarget, int ccInput) {
+    using enum PrimitiveKind;
+    const int source=graph.addNode(VstMidiIn,0,0), controller=graph.addNode(Int,0,0,std::int32_t{64});
+    const int counter=graph.addNode(TriggerCounter,0,0), order=graph.addNode(SampleAndHold,0,0), value=graph.addNode(SampleAndHold,0,0);
+    for (const auto link : {SchematicLink{source,midiTarget,midiInput}, {controller,ccTarget,ccInput},
+         {cc,counter,0,1}, {counter,order,0}, {cc,order,1,0}, {cc,value,0,0}, {cc,value,1,1}})
+        graph.connect(link,LinkNotification::Silent);
+    return {controller,counter,order,value};
+}
+void exerciseMidiCc(Schematic& graph, int cc, const MidiCcBench& bench) {
+    using green::Value;
+    check(graph.readValue(cc)==Value{std::int32_t{0}},"MIDI CC starts with zero instead of restoring a transient incoming value");
+    const auto initialValue=graph.inspectOutput(cc,0).triggers, initialEvent=graph.inspectOutput(cc,1).triggers;
+    const auto initialCounter=std::get<std::int32_t>(graph.readValue(bench.counter));
+    std::uint64_t values=0,events=0; int current=0;
+    const auto send=[&](std::initializer_list<std::uint8_t> bytes, bool matches, int next=0) {
+        const int previous=current;
+        graph.receiveHostMidi(green::MidiMessage{std::vector<std::uint8_t>(bytes)});
+        if (matches) { ++events; if (next!=previous) ++values; current=next; }
+        check(graph.readValue(cc)==Value{std::int32_t{current}} && graph.inspectOutput(cc,0).triggers==initialValue+values &&
+              graph.inspectOutput(cc,1).triggers==initialEvent+events,"CC filters controller/status and emits Value only on changes, event on every match");
+        check(graph.readValue(bench.counter)==Value{std::int32_t(initialCounter+events)},"Exactly one event is delivered per matching CC message");
+        if (matches) {
+            check(graph.readValue(bench.eventValue)==Value{std::int32_t{current}},"The event trigger samples the newly updated CC value");
+            if (next!=previous) check(graph.readValue(bench.valueOrder)==Value{std::int32_t(initialCounter+events-1)},
+                "The Value notification precedes the Changed event trigger");
+        }
+    };
+    graph.setValue(bench.controller,std::int32_t{64});
+    check(graph.inspectOutput(cc,1).triggers==initialEvent,"Changing the controller input never invents a MIDI event");
+    send({0xb0,64,0},true,0); // A matching zero still sends the event, without a value transition.
+    for (int channel : {0,1,15}) for (int value : {1,63,64,126,127,127,0})
+        send({std::uint8_t(0xb0|channel),64,std::uint8_t(value)},true,value);
+    send({0xb0,65,127},false); send({0x90,64,127},false); send({0x80,64,0},false);
+    send({0xe0,64,127},false); send({0xc0,64},false); send({0xd0,64},false); send({0xf8},false);
+    // Keep MIDI validation standard: truncated packets, stray data bytes and out-of-range data never arrive as events.
+    send({},false); send({0xb0,64},false); send({0xb0,64,128},false); send({0x40,64,64},false);
+    for (int number : {-1,128,std::numeric_limits<std::int32_t>::min(),std::numeric_limits<std::int32_t>::max()}) {
+        graph.setValue(bench.controller,std::int32_t{number}); send({0xb0,64,127},false);
+    }
+    graph.setValue(bench.controller,std::int32_t{0}); send({0xbf,0,127},true,127);
+    graph.setValue(bench.controller,std::int32_t{127});
+    check(graph.readValue(cc)==Value{std::int32_t{127}},"Retargeting CC does not clear the previously received value");
+    send({0xb0,0,1},false); send({0xb0,127,64},true,64); send({0xbf,127,64},true,64);
+    send({0xbf,127,127},true,127);
+}
+Bytes midiCcDocument(int version, bool connected) {
+    Bytes b; header(b,version); beginModule(b,"Root",1); beginModule(b,"MIDI CC bench",connected ? 6 : 1);
+    if (connected) {
+        primitive(b,138,0,0); b.d(4); b.b(2); b.str("MIDI");
+        primitive(b,138,0,2); b.d(3); b.b(2); b.str("CC");
+    }
+    primitive(b,166,2,3,"Control Change");
+    if (connected) {
+        primitive(b,139,8,0); b.d(3); b.b(2); b.str("Value");
+        primitive(b,139,8,2); b.d(9); b.b(2); b.str("Changed");
+        primitive(b,29,12,3); b.f(8); b.zeros(2); b.d(0x12345678);
+    }
+    b.w(connected ? 4 : 0);
+    if (connected) { wire(b,version,0,0,2,0); wire(b,version,1,0,2,1); wire(b,version,2,0,3,0); wire(b,version,2,1,4,0); }
+    endModule(b); b.w(0); endModule(b); b.w(0); b.b(0); return b;
+}
+void midiCcRecordRoundTrip(const QByteArray& archive) {
+    Session session; SchematicFile::importFlowStone(session,archive,{}); auto& graph=*session.graph().module(1);
+    check(graph.nodes()[0].kind==PrimitiveKind::MidiCC && graph.inputType(1,0)==green::Type::MIDI && graph.inputType(1,1)==green::Type::Int &&
+          graph.outputType(1,0)==green::Type::Int && graph.outputType(1,1)==green::Type::Trigger,"Preserve native MIDI/CC and Value/Changed connector order");
+    const auto bench=wireMidiCcBench(graph,1,1,0,1,1); exerciseMidiCc(graph,1,bench);
+    const auto saved=SchematicFile::project(session); QTemporaryDir dir; const auto path=dir.filePath("midi-cc.ostone");
+    SchematicFile::write(path,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(path),{});
+    check(SchematicFile::project(reopened)==saved,"MIDI CC node, selected controller and notification wiring survive disk save/reopen");
+    exerciseMidiCc(*reopened.graph().module(1),1,bench);
+}
+void importedMidiCc() {
+    for (int version : {154,159,161,166,171,177}) {
+        midiCcRecordRoundTrip(zip(midiCcDocument(version,false)));
+        const auto raw=midiCcDocument(version,true); Session session; SchematicFile::importFlowStone(session,zip(raw),{});
+        check(session.graph().module(1)->readValue(6)==green::Value{std::int32_t{0x12345678}},"Read the next native primitive immediately after the payload-free MIDI CC record");
+        auto& root=session.graph(); const auto bench=wireMidiCcBench(root,1,1,0,1,1); exerciseMidiCc(root,1,bench);
+        const auto saved=SchematicFile::project(session); QTemporaryDir dir; const auto path=dir.filePath("midi-boundaries.ostone");
+        SchematicFile::write(path,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(path),{});
+        check(SchematicFile::project(reopened)==saved,"Preserve native MIDI/Int/Trigger module boundaries and all four MIDI CC links");
+        exerciseMidiCc(reopened.graph(),1,bench);
+        Bytes marker; primitive(marker,166,2,3,"Control Change"); const auto at=raw.indexOf(marker);
+        check(at>0,"Locate native CC header"); for (int cut=0;cut<marker.size();++cut) expectError(zip(raw.left(at+cut)),"Truncated");
+        Bytes link; wire(link,version,0,0,2,0); auto bad=raw; const auto wireAt=bad.indexOf(link,at+marker.size());
+        check(wireAt>0,"Locate native CC input wire"); bad[wireAt+6]=char(2); expectError(zip(bad),"connector index");
+        link.clear(); wire(link,version,2,0,3,0); bad=raw; const auto outputAt=bad.indexOf(link,wireAt);
+        check(outputAt>0,"Locate native CC output wire"); bad[outputAt+3]=char(2); expectError(zip(bad),"connector index");
+    }
+}
+void nativeMidiCcRecord(const QString& path) {
+    midiCcRecordRoundTrip(SchematicFile::read(path));
+    std::cout<<path.toStdString()<<": unchanged MIDI CC record, notifications and disk save/reopen passed\n";
+}
+void nativeMidiCcModule(const QString& path) {
+    using enum PrimitiveKind;
+    Session session; SchematicFile::importFlowStone(session,SchematicFile::read(path),{}); auto& graph=*session.graph().module(1);
+    check(graph.nodes().size()>=9 && graph.nodes()[0].kind==MidiCC && graph.nodes()[2].kind==WirelessInput && graph.nodes()[3].kind==Divide &&
+          graph.nodes()[5].kind==ModuleOutput && graph.nodes()[7].kind==Selector,"Preserve the complete native MIDI CC module, normalization and enable selector");
+    const auto source=graph.addNode(VstMidiIn,0,0); graph.connect({source,1,0},LinkNotification::Silent);
+    // The original blank wireless source is left intact; the authored bench supplies MIDI to the decoder.
+    const auto verify=[&](Schematic& root) {
+        auto& g=*root.module(1); check(g.readValue(1)==green::Value{std::int32_t{0}},"Opening a native module resets transient CC data");
+        g.setValue(2,std::int32_t{74}); g.setValue(7,true);
+        check(g.readValue(8)==green::Value{std::int32_t{74}},"Native enabled Selector chooses the stored CC number");
+        const auto before=g.inspectOutput(1,1).triggers, outBefore=root.inspectOutput(1).triggers;
+        for (int value : {0,1,64,127,127}) root.receiveHostMidi(green::MidiMessage{{0xbf,74,std::uint8_t(value)}});
+        check(g.readValue(1)==green::Value{std::int32_t{127}} && root.readValue(1)==green::Value{1.f} &&
+              g.inspectOutput(1,1).triggers==before+5 && root.inspectOutput(1).triggers==outBefore+3,
+              "Native Value notifications reach Divide by 127 and the Float module output, with repeated values suppressed");
+        root.receiveHostMidi(green::MidiMessage{{0xb0,74,64}});
+        check(root.readValue(1)==green::Value{64.f/127.f},"The original module's normalization uses the exact received CC value");
+        const auto events=g.inspectOutput(1,1).triggers; g.setValue(7,false);
+        check(g.readValue(8)==green::Value{std::int32_t{-1}},"Native disable selects the stored -1 controller");
+        root.receiveHostMidi(green::MidiMessage{{0xb0,74,127}});
+        check(g.inspectOutput(1,1).triggers==events && root.readValue(1)==green::Value{64.f/127.f},"Disabled native MIDI CC keeps its value and ignores new messages");
+        g.setValue(2,std::int32_t{127}); g.setValue(7,true); root.receiveHostMidi(green::MidiMessage{{0xb0,127,127}});
+        check(root.readValue(1)==green::Value{1.f} && g.inspectOutput(1,1).triggers==events+1,"Native CC selection remains editable after disable/enable");
+    };
+    verify(session.graph()); const auto saved=SchematicFile::project(session); QTemporaryDir dir; const auto pathOut=dir.filePath("native-midi-module.ostone");
+    SchematicFile::write(pathOut,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(pathOut),{});
+    check(SchematicFile::project(reopened)==saved,"Complete native MIDI CC module and authored MIDI feed survive disk save/reopen");
+    verify(reopened.graph()); std::cout<<path.toStdString()<<": complete native MIDI CC module, normalized values and disk save/reopen passed\n";
+}
+Bytes routerDocument(int version, int tag, const QByteArray& payload) {
+    Bytes b; header(b,version); beginModule(b,"Root",1); beginModule(b,"Router bench",1);
+    primitive(b,tag,2,3); b.append(payload); b.w(0); endModule(b); b.w(0); endModule(b); b.w(0); b.b(0); return b;
+}
+void multiplexerValues(const QByteArray& archive, green::Type type, PrimitiveKind sourceKind, green::Value first, green::Value next) {
+    using enum PrimitiveKind;
+    const green::Value empty = type==green::Type::Float ? green::Value{0.f} :
+        type==green::Type::Int ? green::Value{std::int32_t{0}} :
+        type==green::Type::Boolean ? green::Value{false} : green::Value{std::string{}};
+    Session session; SchematicFile::importFlowStone(session,archive,{}); auto& g=*session.graph().module(1);
+    const auto index=g.addNode(Int,0,0,std::int32_t{0}), source=g.addNode(sourceKind,0,0,first);
+    g.connect({index,1,0},LinkNotification::Silent); g.connect({source,1,1},LinkNotification::Silent);
+    const auto verify=[&](Schematic& root) {
+        auto& graph=*root.module(1);
+        check(graph.inputType(1,0)==green::Type::Int && graph.inputType(1,1)==type && graph.nodes()[0].outputPorts().size()==4,
+              "Imported Multiplexer retains Index/Data types, three populated outputs and a spare");
+        graph.setValue(source,first); graph.setValue(index,std::int32_t{-1});
+        check(graph.readValue(1,0)==first && graph.readValue(1,1)==empty,"Negative native Multiplexer Index clamps to output zero");
+        const auto old=graph.inspectOutput(1,0).triggers, newly=graph.inspectOutput(1,1).triggers;
+        graph.setValue(index,std::int32_t{1});
+        check(graph.readValue(1,0)==empty && graph.readValue(1,1)==first &&
+              graph.inspectOutput(1,0).triggers==old && graph.inspectOutput(1,1).triggers==newly+1,
+              "Native Multiplexer index changes notify only the newly selected output");
+        graph.setValue(source,next);
+        check(graph.readValue(1,1)==next && graph.inspectOutput(1,1).triggers==newly+2 && graph.inspectOutput(1,0).triggers==old,
+              "Native Multiplexer data changes reach only the selected branch");
+        graph.setValue(index,std::numeric_limits<std::int32_t>::max());
+        check(graph.readValue(1,2)==next && graph.readValue(1,3)==empty,"Oversized Index clamps before the native spare output");
+        const auto pulses=graph.inspectOutput(1,2).triggers; graph.setValue(index,std::int32_t{9});
+        check(graph.inspectOutput(1,2).triggers==pulses,"Changing the raw Index within the same clamped branch sends no event");
+    };
+    verify(session.graph()); auto saved=SchematicFile::project(session); QTemporaryDir dir; const auto path=dir.filePath("mux.ostone");
+    SchematicFile::write(path,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(path),{});
+    check(SchematicFile::project(reopened)==saved,"Native Multiplexer sockets, type and routing policy survive disk save/reopen");
+    verify(reopened.graph());
+}
+void lastSwitchRecord(const QByteArray& archive, int selected) {
+    using enum PrimitiveKind;
+    Session session; SchematicFile::importFlowStone(session,archive,{}); auto& g=*session.graph().module(1);
+    const auto first=g.addNode(Float,0,0,10.f), second=g.addNode(Float,0,0,20.f);
+    g.connect({first,1,0},LinkNotification::Silent); g.connect({second,1,1},LinkNotification::Silent);
+    check(g.nodes().front().kind==LastSwitch && g.nodes().front().lastSwitchInput==selected &&
+          g.readValue(1)==green::Value{selected ? 20.f : 10.f},"Native Last Switch (1054) restores the saved active input");
+    const auto checkSaved=[&](Session& original) {
+        QTemporaryDir dir; const auto path=dir.filePath("last-switch.ostone"); auto saved=SchematicFile::project(original);
+        SchematicFile::write(path,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(path),{});
+        check(SchematicFile::project(reopened)==saved && reopened.graph().module(1)->readValue(1)==original.graph().module(1)->readValue(1),
+              "Last Switch active input and connected values survive disk save/reopen");
+        auto& graph=*reopened.graph().module(1); graph.setValue(first,11.f);
+        check(graph.readValue(1)==green::Value{11.f},"Reopened Last Switch selects an input when it fires");
+        graph.setValue(second,21.f); check(graph.readValue(1)==green::Value{21.f},"Last Switch follows the other input event");
+        graph.disconnectInput(1,1);
+        check(graph.readValue(1)==green::Value{0.f},"An unconnected saved native Last Switch input uses its default without falling back");
+    };
+    checkSaved(session); g.setValue(first,12.f); g.setValue(second,22.f); checkSaved(session);
+}
+void multiplexerViewRecord(const QByteArray& archive) {
+    using enum PrimitiveKind;
+    Session session; SchematicFile::importFlowStone(session,archive,{}); auto& g=*session.graph().module(1);
+    const auto panel=g.addNode(ModuleGui,0,0), index=g.addNode(Int,0,0,std::int32_t{0});
+    g.connect({panel,1,1}); g.connect({index,1,0});
+    for (int branch=0;branch<2;++branch) {
+        const auto rect=g.addNode(Rect,0,0), bounds=g.addNode(String,0,0,std::string(branch ? "2,0,1,1" : "0,0,1,1"));
+        g.connect({1,rect,0,branch}); g.connect({bounds,rect,1});
+    }
+    const auto verify=[&](Schematic& root) {
+        auto& graph=*root.module(1); check(graph.outputType(1)==green::Type::View,"Native Multiplexer routes Views");
+        for (int request : {-1,0,1,999}) {
+            graph.setValue(index,std::int32_t{request});
+            const auto commands=graph.panelDrawings(std::get<yellow::View>(graph.readValue(panel)));
+            check(commands.size()==1 && std::get<yellow::DrawCommand>(commands[0].command).area.x==(request<1 ? 0 : 2),
+                  "Only the selected native Multiplexer View branch draws, with clamped Index");
+        }
+    };
+    verify(session.graph()); const auto saved=SchematicFile::project(session); QTemporaryDir dir; const auto path=dir.filePath("view-mux.ostone");
+    SchematicFile::write(path,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(path),{});
+    check(SchematicFile::project(reopened)==saved,"Native View Multiplexer links survive disk save/reopen"); verify(reopened.graph());
+}
+void multiplexerDsp(int version, bool doubles) {
+    Bytes b; header(b,version); beginModule(b,"Root",1); beginModule(b,"DSP routes",5);
+    primitive(b,149,2,3); b.d(3); b.d(doubles ? 45 : 39);
+    primitive(b,29,0,0); b.f(8); b.zeros(2); b.d(0);
+    const QByteArray domain=doubles ? "monodouble" : "mono";
+    const QByteArray source=doubles ? "streamdoubleout out;double n;out=n+1.0000000000009094947017729282379150390625;n=n+1;" :
+        "streamout out;float n;out=n+1;n=n+1;";
+    codeBox(b,154,source); for (int i=0;i<2;++i) codeBox(b,154,domain+"in x;"+domain+"out out;out=x;",1);
+    b.w(4); wire(b,version,1,0,0,0); wire(b,version,2,1,0,1);
+    wire(b,version,0,0,3,0); wire(b,version,0,1,4,0); endModule(b); b.w(0); endModule(b); b.w(0); b.b(0);
+    Session session; SchematicFile::importFlowStone(session,zip(b),{});
+    const auto verify=[&](Schematic& root) {
+        auto& g=*root.module(1);
+        for (int request : {0,1,2,-1,999}) {
+            g.setValue(2,std::int32_t{request}); const int selected=std::clamp(request,0,2);
+            for (std::size_t block : {1,7,64,257}) for (int branch=0;branch<2;++branch) {
+                const auto samples=g.captureDsp(4+branch,521,block).front();
+                for (int i=0;i<521;++i) check(samples[i]==(selected==branch ? i+1.+(doubles ? std::ldexp(1.,-40) : 0.) : 0.),
+                    "Native Multiplexer routes exact stream samples across buffer sizes, retaining double precision");
+                if (selected!=branch) check(g.dspTrace(3,0,true).empty(),"An unwired native DSP route does not run its upstream code");
+            }
+        }
+    };
+    verify(session.graph()); auto saved=SchematicFile::project(session); QTemporaryDir dir; const auto path=dir.filePath("dsp-mux.ostone");
+    SchematicFile::write(path,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(path),{});
+    check(SchematicFile::project(reopened)==saved,"Native stream Multiplexer and unused populated outputs survive disk save/reopen");
+    verify(reopened.graph());
+    if (!doubles && version==177) {
+        reopened.enterModule(1); auto& child=reopened.graph(); child.setDspDraft(3,"streamout out;out=.25;"); reopened.compileDsp(3);
+        const auto output=child.addNode(PrimitiveKind::AudioOut,0,0);
+        child.connect({1,output,0,0}); child.connect({1,output,1,1}); reopened.navigate(0);
+        auto& root=reopened.graph(); auto patch=root.prepareAudio(2); root.setLiveAudio(&patch);
+        for (int request : {0,1,2,-1,999,0}) {
+            root.module(1)->setValue(2,std::int32_t{request}); std::array<float,4> left{},right{};
+            check(root.refreshAudioControls(patch) && patch.processor().process({}, {left,right}),"Refresh imported Multiplexer routes between audio buffers");
+            const int selected=std::clamp(request,0,2);
+            for (int i=0;i<4;++i) check(left[i]==(selected==0 ? .25f : 0.f) && right[i]==(selected==1 ? .25f : 0.f),
+                "The next live audio buffer uses the native Multiplexer's clamped route");
+            if (selected==2) check(!root.module(1)->liveDspTrace(3,0,true),"An unconsumed native live-audio route removes its upstream code");
+        }
+        root.setLiveAudio(nullptr);
+    }
+}
+void importedRouters() {
+    using enum PrimitiveKind;
+    for (int version : {154,159,166,171,177}) {
+        for (int type : {0,1,2,3,15}) {
+            Bytes payload; payload.d(3); payload.d(type);
+            if (type==0 || type==2) multiplexerValues(zip(routerDocument(version,149,payload)),green::Type::Float,Float,1.25f,2.5f);
+            if (type==1) multiplexerValues(zip(routerDocument(version,149,payload)),green::Type::String,String,std::string{"first"},std::string{"next"});
+            if (type==3) multiplexerValues(zip(routerDocument(version,149,payload)),green::Type::Int,Int,std::int32_t{17},std::int32_t{-5});
+            if (type==15) multiplexerValues(zip(routerDocument(version,149,payload)),green::Type::Boolean,Boolean,true,false);
+        }
+        for (int selected : {0,1}) { Bytes payload; mathRecord(payload,2,2,true); payload.b(selected); lastSwitchRecord(zip(routerDocument(version,1054,payload)),selected); }
+        Bytes trigger; trigger.d(2); trigger.d(9); Session s; SchematicFile::importFlowStone(s,zip(routerDocument(version,149,trigger)),{});
+        auto& g=*s.graph().module(1); const auto index=g.addNode(Int,0,0,std::int32_t{0}), pulse=g.addNode(Trigger,0,0);
+        g.connect({index,1,0},LinkNotification::Silent); g.connect({pulse,1,1},LinkNotification::Silent);
+        const auto before=g.inspectOutput(1,1).triggers; g.setValue(index,std::int32_t{1});
+        check(g.inspectOutput(1,1).triggers==before+1,"A native Trigger Multiplexer emits a pulse when its output selection changes");
+        g.fireTrigger(pulse); check(g.inspectOutput(1,1).triggers==before+2,"Native Multiplexer passes incoming triggers to the selected output");
+        for (int count : {0,1,7,4096}) { Bytes payload; payload.d(count); payload.d(2); Session edge;
+            SchematicFile::importFlowStone(edge,zip(routerDocument(version,149,payload)),{});
+            check(edge.graph().module(1)->nodes()[0].outputPorts().size()==count+1,"Retain empty, single and large native Multiplexer socket lists");
+            auto saved=SchematicFile::project(edge); Session reopened; SchematicFile::loadProject(reopened,saved,{});
+            check(SchematicFile::project(reopened)==saved,"Retain unconnected populated Multiplexer sockets on reopen");
+        }
+        Bytes payload; payload.d(2); payload.d(2); const auto raw=routerDocument(version,149,payload);
+        Bytes marker; primitive(marker,149,2,3); const auto at=raw.indexOf(marker)+marker.size();
+        for (int cut=0;cut<8;++cut) expectError(zip(raw.left(at+cut)),"Truncated");
+        payload.clear(); payload.d(0xffffffff); payload.d(2); expectError(zip(routerDocument(version,149,payload)),"record count");
+        payload.clear(); payload.d(2); payload.d(999); expectError(zip(routerDocument(version,149,payload)),"connector type");
+        payload.clear(); mathRecord(payload,2,2); payload.b(2); expectError(zip(routerDocument(version,1054,payload)),"Last Switch input index");
+        payload.clear(); mathRecord(payload,2,2); expectError(zip(routerDocument(version,1054,payload).left(at+payload.size())),"Truncated");
+    }
+    for (int version : {159,177}) for (bool doubles : {false,true}) multiplexerDsp(version,doubles);
+}
+void nativeRouterRecord(const QString& path) {
+    const auto archive=SchematicFile::read(path); const auto parsed=FlowStoneFile::decode(archive);
+    const auto& node=parsed.root.children[0].children[0].node;
+    if (node.kind==PrimitiveKind::Multiplexer) multiplexerViewRecord(archive);
+    else lastSwitchRecord(archive,node.lastSwitchInput);
+    std::cout<<path.toStdString()<<": unchanged native router, functional wiring and disk save/reopen passed\n";
+}
+void presetPayload(Bytes& b, int version, const std::vector<float>& values, float current, bool locked = false, float order = -1) {
+    b.d(values.size()); for (float value : values) b.f(value);
+    b.b(locked); b.f(current); b.f(order); b.b(0); // recording cache is refreshed from Rec
+    if (version >= 162) {
+        if (version >= 164) b.d(0xffffffff); // no automation binding
+        if (version >= 163) b.zeros(4); else b.d(0); // empty automation lane
+        if (version >= 164) b.d(0xffffffff); // cached lane index
+        b.d(0); // no automation recordings
+    }
+}
+Bytes presetDocument(int version, const QByteArray& payload, bool connected = false) {
+    Bytes b; header(b,version); beginModule(b,"Root",1); beginModule(b,"Preset bench",connected ? 14 : 1);
+    primitive(b,189,42,7); b.append(payload);
+    if (connected) {
+        const std::array<int,10> types{27,2,1,1,1,15,15,2,15,2};
+        for (int i=0;i<10;++i) { primitive(b,138,0,i*2); b.d(types[i]); b.b(2); b.str(QByteArray::number(i)); }
+        for (int i=0;i<3;++i) { primitive(b,139,60,i*2); b.d(i ? 9 : 2); b.b(2); b.str(QByteArray::number(i)); }
+    }
+    b.w(connected ? 13 : 0);
+    if (connected) {
+        for (int i=0;i<10;++i) wire(b,version,i+1,0,0,i);
+        for (int i=0;i<3;++i) wire(b,version,0,i,11+i,0);
+    }
+    endModule(b); b.w(0); endModule(b); b.w(0); b.b(0); return b;
+}
+void presetRecordRoundTrip(const QByteArray& archive, float initial, int programs, bool locked = false) {
+    using enum PrimitiveKind;
+    Session s; check(SchematicFile::importFlowStone(s,archive,{}),"Import native Preset Float");
+    const auto verify = [&](Session& session) {
+        auto& g=*session.graph().module(1); const auto& node=g.nodes().front();
+        check(node.kind==PresetFloat && node.presetParameter && node.presetParameter->flowStoneFloat &&
+              node.presetParameter->flowStoneFloat->locked==locked && node.presetParameter->saved.size()==programs,
+              "Preserve native preset bank and cached lock");
+        check(g.readValue(1)==green::Value{initial},"Preserve native current Float without clamping");
+        check(g.inputType(1,0)==green::Type::Preset && g.inputType(1,9)==green::Type::Float &&
+              g.outputType(1,0)==green::Type::Float && g.outputType(1,1)==green::Type::Trigger &&
+              g.outputType(1,2)==green::Type::Trigger,"Preserve native Preset connector order and floating Order");
+    };
+    verify(s); auto saved=SchematicFile::project(s); QTemporaryDir dir; check(dir.isValid(),"Preset temporary directory");
+    const auto path=dir.filePath("preset.ostone"); SchematicFile::write(path,saved); Session reopened;
+    check(SchematicFile::loadProject(reopened,SchematicFile::read(path),{}) && SchematicFile::project(reopened)==saved,
+          "Native Preset current value, all bank entries, order and lock survive disk save/reopen");
+    verify(reopened);
+    for (auto* session : {&s,&reopened}) {
+        auto& g=*session->graph().module(1); const auto before=g.nodes().front().presetParameter->saved;
+        const auto edit=g.addNode(Float,0,0,0.f); g.connect({edit,1,1},LinkNotification::Silent);
+        const auto count=g.inspectOutput(1).triggers;
+        g.setValue(edit,1.5f);
+        check(g.readValue(1)==green::Value{1.5f} && g.inspectOutput(1).triggers==count+1,
+              "Unconnected native Preset edits preserve out-of-range values and emit notifications");
+        check(locked ? g.nodes().front().presetParameter->saved==before :
+              g.nodes().front().presetParameter->saved.at(0)==green::Value{1.5f},
+              "Unconnected native Preset edits program zero unless the saved lock is on");
+    }
+}
+void importedPresets() {
+    using enum PrimitiveKind;
+    for (int version : {154,159,161,162,163,164,166,171,177}) {
+        Bytes payload; presetPayload(payload,version,{.125f,.5f,1.25f},2.5f,false,1.75f);
+        presetRecordRoundTrip(zip(presetDocument(version,payload)),2.5f,3);
+        Bytes locked; presetPayload(locked,version,{.125f,.5f,1.25f},2.5f,true,-1);
+        presetRecordRoundTrip(zip(presetDocument(version,locked)),2.5f,3,true);
+        Session session; check(SchematicFile::importFlowStone(session,zip(presetDocument(version,payload,true)),{}),"Import every native Preset input and output link");
+        auto& root=session.graph(); auto& g=*root.module(1);
+        check(root.inputType(1,0)==green::Type::Preset && root.inputType(1,9)==green::Type::Float && g.links().size()==13,
+              "Native Preset bus type 27 and all thirteen connector indices bind unchanged");
+        const auto manager=root.addNode(PresetManager,0,0), count=root.addNode(Int,0,0,std::int32_t{3}),
+                   program=root.addNode(Int,0,0,std::int32_t{0}), edit=root.addNode(Float,0,0,0.f),
+                   lock=root.addNode(Boolean,0,0,false), order=root.addNode(Float,0,0,2.25f),
+                   fallback=root.addNode(Float,0,0,.375f), enabled=root.addNode(Boolean,0,0,true),
+                   oldValue=root.addNode(SampleAndHold,0,0), newValue=root.addNode(SampleAndHold,0,0);
+        for (const auto link : {SchematicLink{count,manager,0}, {program,manager,1}, {lock,manager,3},
+                               {manager,1,0}, {edit,1,1}, {order,1,9}, {fallback,1,7},
+                               {enabled,1,5}, {enabled,1,6}, {enabled,1,8},
+                               {1,oldValue,0}, {1,oldValue,1,1}, {1,newValue,0}, {1,newValue,1,2}})
+            root.connect(link,LinkNotification::Silent);
+        const auto exercise=[&](Schematic& r) {
+            auto& child=*r.module(1);
+            r.setValue(program,std::int32_t{1}); check(child.readValue(1)==green::Value{.5f},"Recall imported bank program one");
+            r.setValue(program,std::int32_t{2}); check(child.readValue(1)==green::Value{1.25f},"Recall raw imported bank program two");
+            const auto before=child.inspectOutput(1,1).triggers, after=child.inspectOutput(1,2).triggers;
+            r.setValue(edit,1.75f);
+            check(child.readValue(1)==green::Value{1.75f} && child.inspectOutput(1,1).triggers==before+1 && child.inspectOutput(1,2).triggers==after+1,
+                  "Preset edit sends Before, Val and After and stores the selected program");
+            check(r.readValue(oldValue)==green::Value{1.25f} && r.readValue(newValue)==green::Value{1.75f},
+                  "Before and After see the previous and new values through imported output links");
+            r.setValue(program,std::int32_t{1}); r.setValue(program,std::int32_t{2});
+            check(child.readValue(1)==green::Value{1.75f},"Recall the edited program after switching away");
+            r.setValue(lock,true); r.setValue(edit,.875f);
+            check(child.nodes().front().presetParameter->saved.at(2)==green::Value{1.75f},"Manager lock prevents bank writes");
+            r.setValue(program,std::int32_t{1}); r.setValue(program,std::int32_t{2}); r.setValue(lock,false);
+            check(child.readValue(1)==green::Value{1.75f},"Locked edits leave the imported bank intact");
+            const auto parameters=r.pluginParameters();
+            check(parameters.size()==1 && parameters[0].order==2.25,"Native floating-point Order remains live through module boundaries");
+        };
+        exercise(root); auto saved=SchematicFile::project(session); QTemporaryDir dir; const auto path=dir.filePath("connected.ostone");
+        SchematicFile::write(path,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(path),{});
+        check(SchematicFile::project(reopened)==saved,"Save/reopen native Preset bank with all live links");
+        auto& rr=reopened.graph(); rr.setValue(program,std::int32_t{1}); rr.setValue(program,std::int32_t{2});
+        check(rr.module(1)->readValue(1)==green::Value{1.75f},"Edited program recalls correctly after reopening");
+        rr.setValue(edit,-.25f); rr.setValue(program,std::int32_t{1}); rr.setValue(program,std::int32_t{2});
+        check(rr.module(1)->readValue(1)==green::Value{-.25f},"Reopened native Preset remains editable without clamping");
+    }
+    for (int version : {159,162,163,164,177}) {
+        Bytes payload; presetPayload(payload,version,{.125f,.5f,1.25f},.75f);
+        Bytes marker; primitive(marker,189,42,7);
+        const auto raw=presetDocument(version,payload);
+        const auto start=raw.indexOf(marker)+marker.size();
+        for (int cut=0;cut<payload.size();++cut)
+            expectError(zip(raw.left(start+cut)),"Truncated");
+        auto bad=payload; for (int i=0;i<4;++i) bad[i]=char(0xff);
+        expectError(zip(presetDocument(version,bad)),"record count");
+        bad=payload; bad[16]=char(2); expectError(zip(presetDocument(version,bad)),"Boolean");
+        bad=payload; bad[25]=char(2); expectError(zip(presetDocument(version,bad)),"Boolean");
+        if (version>=162) {
+            bad=payload; bad[bad.size()-4]=char(1);
+            expectError(zip(presetDocument(version,bad)),"automation recordings");
+            if (version>=164 || version==162) {
+                bad=payload; for (int i=0;i<4;++i) bad[26+i]=0;
+                bad[26]=char(1); expectError(zip(presetDocument(version,bad)),"automation bindings");
+            }
+            if (version>=163) {
+                bad=payload; bad[version>=164 ? 30 : 26]=char(2);
+                expectError(zip(presetDocument(version,bad)),"Boolean");
+            }
+        }
+    }
+    for (int version : {154,159,162,164,177}) {
+        Bytes empty; presetPayload(empty,version,{},2.5f);
+        Session session; SchematicFile::importFlowStone(session,zip(presetDocument(version,empty)),{});
+        auto& g=*session.graph().module(1); const auto edit=g.addNode(Float,0,0,0.f);
+        g.connect({edit,1,1},LinkNotification::Silent); g.setValue(edit,1.75f);
+        check(g.readValue(1)==green::Value{0.f} && g.nodes().front().presetParameter->saved.empty() &&
+              g.nodes().front().presetParameter->current==green::Value{2.5f},
+              "Empty native banks output zero and ignore edits without losing their cached current value");
+        auto saved=SchematicFile::project(session); QTemporaryDir dir; const auto path=dir.filePath("empty.ostone");
+        SchematicFile::write(path,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(path),{});
+        check(SchematicFile::project(reopened)==saved && reopened.graph().module(1)->readValue(1)==green::Value{0.f},
+              "Empty native bank remains inactive after disk save/reopen");
+        auto& r=*reopened.graph().module(1); const auto manager=r.addNode(PresetManager,0,0);
+        r.connect({manager,1,0}); r.setValue(edit,.875f);
+        check(r.readValue(1)==green::Value{.875f} && r.nodes().front().presetParameter->saved.at(0)==green::Value{.875f},
+              "Supplying a manager program activates an empty imported Preset bank");
+    }
+    // The maximum bank is bounded but valid; do not truncate it to 32 programs.
+    Bytes full; presetPayload(full,177,std::vector<float>(maxPresetPrograms,.625f),.875f);
+    presetRecordRoundTrip(zip(presetDocument(177,full)),.875f,maxPresetPrograms);
+}
+void nativePresetRecord(const QString& path) {
+    const auto archive=SchematicFile::read(path); const auto imported=FlowStoneFile::decode(archive);
+    const float expected=path.contains("Detuner") ? std::bit_cast<float>(quint32{0x3ee8ba2f}) : 0.f;
+    const auto& node=imported.root.children[0].children[0].node;
+    check(node.presetParameter->saved.size()==32,"Bundled Preset bank contains all 32 programs");
+    for (const auto& [program,value] : node.presetParameter->saved)
+        check(value==green::Value{expected},"Decode each unchanged bundled Preset Float word");
+    presetRecordRoundTrip(archive,expected,32);
+    std::cout<<path.toStdString()<<": unchanged Preset bank, edits and disk save/reopen passed\n";
+}
 QByteArray stateRecordDocument(int version,int tag,std::int32_t value=0,bool properties=false,bool layout=false) {
     Bytes b;header(b,version);beginModule(b,"Root",1);beginModule(b,"State",1);primitive(b,tag,0,0);
     if(tag==326) b.d(std::bit_cast<quint32>(value));
@@ -2352,6 +3271,24 @@ int main(int argc, char** argv) {
     try {
         if (argc > 1 && QByteArray(argv[1]) == "--shape-records") {
             for(int i=2;i<argc;++i)nativeShapeRecord(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--bitmap-records") {
+            check(argc>2,"Native Bitmap records required"); for(int i=2;i<argc;++i) nativeBitmapRecord(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--midi-cc-records") {
+            check(argc>2,"Native MIDI CC records required"); for(int i=2;i<argc;++i) nativeMidiCcRecord(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--midi-cc-modules") {
+            check(argc>2,"Native MIDI CC modules required"); for(int i=2;i<argc;++i) nativeMidiCcModule(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--router-records") {
+            check(argc>2,"Native router records required"); for(int i=2;i<argc;++i) nativeRouterRecord(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--preset-records") {
+            check(argc > 2,"Native Preset records required"); for(int i=2;i<argc;++i) nativePresetRecord(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--drop-list-records") {
+            check(argc > 2, "Native Drop List records required"); for (int i=2; i<argc; ++i) nativeDropListRecord(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--drop-list-items") {
+            check(argc > 2, "Native Drop List items required"); for (int i=2; i<argc; ++i) nativeDropListItems(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--generator-records") {
+            check(argc > 2, "Native generator records required"); for (int i = 2; i < argc; ++i) nativeGeneratorRecord(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--square-modules") {
+            check(argc > 2, "Native Square modules required"); for (int i = 2; i < argc; ++i) nativeSquareModule(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--audio-records") {
             check(argc>2,"Native audio records required");for(int i=2;i<argc;++i)nativeAudioRecord(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--echo-module") {
@@ -2406,7 +3343,7 @@ int main(int argc, char** argv) {
                 Session s; SchematicFile::importFlowStone(s, SchematicFile::read(QString::fromLocal8Bit(argv[i])), {});
                 Session reopened; SchematicFile::loadProject(reopened, SchematicFile::project(s), {});
             }
-        } else { importsAndRoundTrips(); rejectsInvalidFiles(); codePorts(); valuesAndRuby(); linkedCodeSources(); compiledCaches(); valueLayouts(); propertyPanelLayouts(); genericMathRecords(); floatDeZipperRecord(); importedPanels(); legacyPanelControls(); inheritedViews(); propertyWireless(); guiDrawing(); guiSelectorAndRoutedLinks(); penAndFontProperties(); stringFormatsAndBrushes(); customRadialPaths(); importedShapes(); importedDrawingControls(); importedColorConversions(); importedViewCaches(); importedComparisons(); importedRouting(); importedStateRecords(); importedAudioRecords(); heldClose(); }
+        } else { importsAndRoundTrips(); rejectsInvalidFiles(); codePorts(); valuesAndRuby(); linkedCodeSources(); compiledCaches(); valueLayouts(); propertyPanelLayouts(); genericMathRecords(); floatDeZipperRecord(); importedPanels(); legacyPanelControls(); inheritedViews(); propertyWireless(); guiDrawing(); guiSelectorAndRoutedLinks(); penAndFontProperties(); stringFormatsAndBrushes(); customRadialPaths(); importedShapes(); importedDrawingControls(); importedColorConversions(); importedViewCaches(); importedComparisons(); importedRouting(); importedStateRecords(); importedAudioRecords(); importedGeneratorRecords(); importedDropLists(); importedPresets(); importedRouters(); importedMidiCc(); importedBitmaps(); heldClose(); }
         std::cout << "FlowStone import tests passed\n"; return 0;
     } catch (const std::exception& e) { std::cerr << e.what() << '\n'; return 1; }
 }

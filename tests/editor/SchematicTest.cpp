@@ -14793,7 +14793,7 @@ void midiFiltersExtractAndBufferMessagesInOrder()
           graph.inspectOutput(status).triggers == 2 && graph.inspectOutput(status, 1).triggers == 5 &&
           graph.inspectOutput(note).triggers == 2 && graph.inspectOutput(note, 1).triggers == 5,
           "Filters route each message once to either Match or Remaining");
-    check(integer(graph, cc) == 127 && graph.inspectOutput(cc, 1).triggers == 1 &&
+    check(integer(graph, cc) == 127 && graph.inspectOutput(cc, 0).triggers == 1 && graph.inspectOutput(cc, 1).triggers == 1 &&
           integer(graph, aftertouch) == 82 && graph.inspectOutput(aftertouch).triggers == 1 &&
           integer(graph, bend) == 16383 && graph.inspectOutput(bend).triggers == 1,
           "Decoders distinguish CC, channel pressure, and 14-bit pitch bend");

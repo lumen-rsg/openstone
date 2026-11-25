@@ -32,7 +32,7 @@
       "module_offset": "0x7e",
       "sha256": "1352145ca7798c5791b6363996bd2e60a773dabf30735cecb1d0d1a16ecc6f36",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 149 (0x95) at byte 0xe0f (Root/Root/0-1 Timed Counter//Button toggle)"
+      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x14e8 (Root/0-1 Timed Counter/Loop Time (s))"
     },
     {
       "module": "0-1 To Hz",
@@ -80,7 +80,7 @@
       "module_offset": "0x9e",
       "sha256": "3aa0ec27a8081e3fc9c9dd2ef71b869f4371b73176f3ff5b9ff2be5bdf619cce",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 149 (0x95) at byte 0x5f (Root/Root/Alpha Switch)"
+      "detail": "FlowStone import: Unsupported component ID 106 (0x6a) at byte 0xb8 (Root/Root/Alpha Switch/)"
     },
     {
       "module": "Amp",
@@ -88,7 +88,7 @@
       "module_offset": "0x5a",
       "sha256": "b7ef92876488c00f1d16bee4d11cf2dbccaeb29904a6bb05ffd9ca2b5645dc28",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x12de (Root/Root/Amp/Knob - Static/Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x1d77 (Root/Root/Amp/Knob - Static/Knob/Bitmap)"
     },
     {
       "module": "Audio Menu",
@@ -104,7 +104,7 @@
       "module_offset": "0xa3",
       "sha256": "8f7b8480cf464a85ef27caede7d12767cdef1282e9816810cad7cb15aed60f8f",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x3e1e (Root/Root/Bitmap-Strip LED-Indicator/Bitmap-Strip State)"
+      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x5991 (Root/Bitmap-Strip LED-Indicator/Bitmap-Strip State/2)"
     },
     {
       "module": "Bitmap-Strip State",
@@ -112,7 +112,7 @@
       "module_offset": "0x96",
       "sha256": "bee9bb23b2bb6d6b0da4096a159e922f7afaf631ead7905a661cf47cbd62769d",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x2f10 (Root/Root/Bitmap-Strip State)"
+      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x410f (Root/Bitmap-Strip State/2)"
     },
     {
       "module": "Bitmap",
@@ -120,7 +120,7 @@
       "module_offset": "0x64",
       "sha256": "989eebccab1c4af3abb4b23a8d6e8b2b6c2dba77b5a07bdaf860aacf7c3b3a37",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x1e4b (Root/Root/Bitmap)"
+      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x2c55 (Root/Bitmap/8)"
     },
     {
       "module": "Clip",
@@ -208,7 +208,7 @@
       "module_offset": "0x7a",
       "sha256": "bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 237 (0xed) at byte 0xc79 (Root/Root/Detuner/Selector)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x43cd (Root/Root/Detuner//Knob/Bitmap)"
     },
     {
       "module": "Distortion",
@@ -216,7 +216,7 @@
       "module_offset": "0x7f",
       "sha256": "57667e4235573765e346b118765f9d3271ef71d9bd122e572a1833af0db5ebc0",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0xed7 (Root/Root/Distortion/Gain/Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x1f61 (Root/Root/Distortion/Gain/Knob/Bitmap)"
     },
     {
       "module": "Double Stream Biquad (DF1)",
@@ -256,7 +256,7 @@
       "module_offset": "0x5f",
       "sha256": "1f4eb57375b5dfabe799c25596f111855a3048aec5cf0f0aea97e04ac96946d6",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x133c (Root/Root/Echo Delay//Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x2397 (Root/Root/Echo Delay//Knob/Bitmap)"
     },
     {
       "module": "Edit Box",
@@ -272,7 +272,7 @@
       "module_offset": "0x71",
       "sha256": "cf2508a646b9f6ed09c6ba030ebff12d584905319d6a7353c71b26b2948766a2",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x18dd (Root/Root/Envelope Follower/Knob - Static/Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x2967 (Root/Root/Envelope Follower/Knob - Static/Knob/Bitmap)"
     },
     {
       "module": "FFT Display",
@@ -392,7 +392,7 @@
       "module_offset": "0xc7",
       "sha256": "d23c6d34ab0b4e1845b20e39871f11b61973224b0beadaeaf72c9725b300a413",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0xb89 (Root/Root/Knob - Animated/Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x1ebee (Root/Root/Knob - Animated/Knob/Bitmap)"
     },
     {
       "module": "Knob - Static With Gauge",
@@ -400,7 +400,7 @@
       "module_offset": "0x11b",
       "sha256": "a93cd23fe23a67cee13ff30a5dfd443648a58371edbd8ef79d80666457264f5e",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0xd4d (Root/Root/Knob - Static With Gauge/Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x23db (Root/Root/Knob - Static With Gauge/Knob/Bitmap)"
     },
     {
       "module": "Knob - Static",
@@ -408,7 +408,7 @@
       "module_offset": "0xa6",
       "sha256": "a945dde82d2e153fd8a17ddd354e5761d4a1a6a3be8f9e1ec624927fa6bd794d",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0xd2c (Root/Root/Knob - Static/Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x1db6 (Root/Root/Knob - Static/Knob/Bitmap)"
     },
     {
       "module": "LED-Indicator",
@@ -456,7 +456,7 @@
       "module_offset": "0xa4",
       "sha256": "5a2025986e9938d6ec264a82c35e642498b1f1405c51826c0562173a9d6141c1",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0xf9 (Root/Root/Meter - Bi-directional/Meter/Strip Loader)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0xb72 (Root/Root/Meter - Bi-directional/Meter/Strip Loader)"
     },
     {
       "module": "Meter - LED",
@@ -464,7 +464,7 @@
       "module_offset": "0x85",
       "sha256": "473eaecdf0a2f8caa8fa769a811bbf323576338c4fcafd606d1f298d7f1d47fa",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0xee (Root/Root/Meter - LED/Meter/Strip Loader)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x606c (Root/Root/Meter - LED/Meter/Strip Loader)"
     },
     {
       "module": "Meter - Positive",
@@ -472,7 +472,7 @@
       "module_offset": "0x83",
       "sha256": "1a38d8cdb62674bd05c0d42d09292ed4dbbd158590f68ac708f2515a0ea3c4d5",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0xf3 (Root/Root/Meter - Positive/Meter/Strip Loader)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0xb3a (Root/Root/Meter - Positive/Meter/Strip Loader)"
     },
     {
       "module": "Meter - Vintage",
@@ -488,7 +488,7 @@
       "module_offset": "0x6b",
       "sha256": "ba3481a7789138738368cb892de126dd7306a3e4b221907db3461dbd76088f1c",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0xed (Root/Root/Meter - dB/Meter/Strip Loader)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0xb34 (Root/Root/Meter - dB/Meter/Strip Loader)"
     },
     {
       "module": "Midi-CC Encode",
@@ -552,7 +552,7 @@
       "module_offset": "0xa8",
       "sha256": "a81d93edb62babf2f90b2110bbfe3946a07cd4b925ab6179cdec3be1a8e04da8",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x1bfc (Root/Root/Moog Filter/Knob - Static/Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x328a (Root/Root/Moog Filter/Knob - Static/Knob/Bitmap)"
     },
     {
       "module": "Multi LFO",
@@ -560,7 +560,7 @@
       "module_offset": "0x79",
       "sha256": "8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 165 (0xa5) at byte 0x80 (Root/Root/Multi LFO/Multi Osc)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x3189 (Root/Root/Multi LFO/Speed/Knob/Bitmap)"
     },
     {
       "module": "Multi Osc",
@@ -568,7 +568,7 @@
       "module_offset": "0x9b",
       "sha256": "7ff84f38208052387da2ab9f4232307b6fe81d295a7263099ebb18428d1529b9",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 165 (0xa5) at byte 0x80 (Root/Root/Multi Osc/Multi Osc)"
+      "detail": "FlowStone import: Unsupported component ID 405 (0x195) at byte 0x725 (Root/Root/Multi Osc/Hz To 0-1)"
     },
     {
       "module": "Multi Sample Advanced",
@@ -592,7 +592,7 @@
       "module_offset": "0xe8",
       "sha256": "c01d6e6e11701efcd89dbfdbfb3a940062a586380f98464d9942f91c9ab62f2f",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x13a5 (Root/Root/Noise Gate/Knob - Static/Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x1d77 (Root/Root/Noise Gate/Knob - Static/Knob/Bitmap)"
     },
     {
       "module": "Overdrive",
@@ -600,7 +600,7 @@
       "module_offset": "0x76",
       "sha256": "c3a3bddef4760cf389b7c4242bbc1ee97c9ea3681fbf5cfbaf10102486866403",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0xefe (Root/Root/Overdrive/Gain/Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x1f88 (Root/Root/Overdrive/Gain/Knob/Bitmap)"
     },
     {
       "module": "PWM",
@@ -608,7 +608,7 @@
       "module_offset": "0x65",
       "sha256": "9935be89d99054fc61e99d626a96ce9367bfbccd687a58d3bec4a84a6b226e23",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 165 (0xa5) at byte 0x97 (Root/Root/PWM/Multi Osc/Multi Osc)"
+      "detail": "FlowStone import: Unsupported component ID 65 (0x41) at byte 0x7e5 (Root/Root/PWM/Multi Osc/Selector/Selector/Drop List)"
     },
     {
       "module": "Packed Mono Double Readout",
@@ -672,7 +672,7 @@
       "module_offset": "0xa0",
       "sha256": "198d724f59e08a99e2888a704474e92f2702c8112a7de23806aee2c22ba2202e",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x14b9 (Root/Root/Ping-Pong Delay//Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x2514 (Root/Root/Ping-Pong Delay//Knob/Bitmap)"
     },
     {
       "module": "Poly Bool Readout",
@@ -736,7 +736,7 @@
       "module_offset": "0x69",
       "sha256": "290717424881e49e5027310f3cb240ff0f7b8019adf70f70da30dd7e98dbd841",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x57c7 (Root/Root/Reverb//Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x6822 (Root/Root/Reverb//Knob/Bitmap)"
     },
     {
       "module": "Routing Matrix",
@@ -768,7 +768,7 @@
       "module_offset": "0xb9",
       "sha256": "cce3e17254aa7f9c54dbd02a785a0778c5b7e7fe0fc0481471edd3763b8b86ee",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 237 (0xed) at byte 0x587 (Root/Root/Sample and Hold/Selector)"
+      "detail": "FlowStone import: Unsupported linked code-source string producer at byte 0x12c1 (Root/Sample and Hold/Selector/1)"
     },
     {
       "module": "Save Image",
@@ -816,7 +816,7 @@
       "module_offset": "0x8b",
       "sha256": "d6d4ac1da018b7f9ab0f40a8032b34183586de2e430ebecccec1529f7199c7e9",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x155c (Root/Root/Slew Limiter/Knob - Static/Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x25e6 (Root/Root/Slew Limiter/Knob - Static/Knob/Bitmap)"
     },
     {
       "module": "Slider - Horizontal",
@@ -824,7 +824,7 @@
       "module_offset": "0xa1",
       "sha256": "dea7e2b1de128b1f9ec43d24712dc70dbea99c2596af876196b4a250361443ee",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x6d6 (Root/Root/Slider - Horizontal/Interaction/)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0xb44 (Root/Root/Slider - Horizontal/Interaction/)"
     },
     {
       "module": "Soft Clip",
@@ -840,7 +840,7 @@
       "module_offset": "0xe3",
       "sha256": "d74ff76e4bef1eb365db122a691bd3c5742531780d93d5d2ed7277031c47d4f7",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x210c (Root/Root/State Variable Filter/Knob - Static/Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x379a (Root/Root/State Variable Filter/Knob - Static/Knob/Bitmap)"
     },
     {
       "module": "Step LFO",
@@ -856,7 +856,7 @@
       "module_offset": "0x7d",
       "sha256": "b69daf9be2b4a62ddeea38d0397aa6cd922203978be1a9e205b1241e3720896a",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x1372 (Root/Root/Stereo Amp - WIth Gauge/Knob - Static/Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x2a00 (Root/Root/Stereo Amp - WIth Gauge/Knob - Static/Knob/Bitmap)"
     },
     {
       "module": "Stereo Amp",
@@ -864,7 +864,7 @@
       "module_offset": "0x67",
       "sha256": "aaf8de6d5a5b08592e2aa9b57c7d1a917426218e385279dc2aed0205451958bd",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x1339 (Root/Root/Stereo Amp/Knob - Static/Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x29c7 (Root/Root/Stereo Amp/Knob - Static/Knob/Bitmap)"
     },
     {
       "module": "Stereo Chorus",
@@ -872,7 +872,7 @@
       "module_offset": "0x76",
       "sha256": "c3b0e82bd39c63d391083fb8278a7bf1602b282ccbec703ff53d7f707b07087e",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x1d13 (Root/Root/Stereo Chorus//Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x2d6e (Root/Root/Stereo Chorus//Knob/Bitmap)"
     },
     {
       "module": "Stereo Clip",
@@ -928,7 +928,7 @@
       "module_offset": "0xba",
       "sha256": "f1fd850d249a84d646e4ecea96fae3a685872ecf51ef8b7d38cd3c36d51d4607",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0xed (Root/Root/Switch - Button/Toggle Switch/Strip Loader)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x21ce0 (Root/Root/Switch - Button/Toggle Switch/Strip Loader)"
     },
     {
       "module": "Switch - Flick",
@@ -936,7 +936,7 @@
       "module_offset": "0xf1",
       "sha256": "a2816edaa9ac538a4736d91697a139c25fa4bca8402400ea58212f1514833832",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0xec (Root/Root/Switch - Flick/Toggle Switch/Strip Loader)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x1ddc (Root/Root/Switch - Flick/Toggle Switch/Strip Loader)"
     },
     {
       "module": "Switch - LED",
@@ -944,7 +944,7 @@
       "module_offset": "0xad",
       "sha256": "134d4b83ca0dcfa655fc38beae2608bc285ccbecbd58e26f5818c075d9f2be4a",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x759 (Root/Root/Switch - LED/Toggle Switch/Strip Loader)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x66d7 (Root/Root/Switch - LED/Toggle Switch/Strip Loader)"
     },
     {
       "module": "Switch",
@@ -952,7 +952,7 @@
       "module_offset": "0xb4",
       "sha256": "49be7706ea2ce945bf37c5948bb601df4d0387abda15601c0c3ce384b7c6d0af",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0xe4 (Root/Root/Switch/Toggle Switch/Strip Loader)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x844 (Root/Root/Switch/Toggle Switch/Strip Loader)"
     },
     {
       "module": "Text View",
@@ -984,7 +984,7 @@
       "module_offset": "0x5a",
       "sha256": "c336dd5d3b7b5d58e3657abfa99518f43513b4444950dc962edbf588910321bf",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported component ID 105 (0x69) at byte 0x13f2 (Root/Root/VST/Stereo Amp/Knob - Static/Knob/Bitmap)"
+      "detail": "FlowStone import: Unsupported component ID 103 (0x67) at byte 0x2a80 (Root/Root/VST/Stereo Amp/Knob - Static/Knob/Bitmap)"
     },
     {
       "module": "VSTi",

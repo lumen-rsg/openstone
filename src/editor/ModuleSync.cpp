@@ -523,7 +523,7 @@ Session::NodeCopy Session::snapshotNode(const Schematic& graph, int id, bool inc
         result.node.capturedSignals.clear();
     }
     result.node.codeSourceDirty = false;
-    result.node.lastSwitchInput = 0;
+    if (!result.node.flowStoneRoutingBranches) result.node.lastSwitchInput = 0;
     result.node.matrix.reset();
     result.node.network.reset();
     result.node.sfz.reset();

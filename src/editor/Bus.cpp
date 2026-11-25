@@ -54,6 +54,8 @@ std::vector<Port> SchematicNode::inputPorts() const
         return result;
     }
     auto inputs = primitive(kind).inputs;
+    if (kind == PrimitiveKind::PresetFloat && presetParameter && presetParameter->flowStoneFloat)
+        inputs[9].type = green::Type::Float;
     if (hasExpandableInputs(kind) && inputTriggers.size() > inputs.size()) {
         const Port connected{kind == PrimitiveKind::Indexer ? "Trigger" : "Value", inputs.back().type};
         inputs.insert(inputs.end() - 1, inputTriggers.size() - inputs.size(), connected);

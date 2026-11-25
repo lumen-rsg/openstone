@@ -144,6 +144,9 @@ public:
     using Reader::Reader;
     FlowStoneImport result;
     int version = 0;
+    std::vector<QByteArray> imageResources;
+    std::map<quint32, yellow::Bitmap> decodedImages;
+    qsizetype decodedImageBytes = 0;
     void warning(const QString& message) { if (!result.warnings.contains(message)) result.warnings.append(message); }
     std::optional<Type> type(quint32 n) {
         switch (n) {
@@ -155,6 +158,7 @@ public:
         case 17: return Type::Font; case 18: return Type::StringFormat;
         case 16: return Type::Bitmap; case 23: case 10: return Type::FloatArray;
         case 25: return Type::PolyBoolean; case 28: return Type::Mono4; case 31: return Type::MonoBoolean;
+        case 27: return Type::Preset;
         case 37: return Type::RubyValue; case 39: return Type::Stream; case 44: return Type::StreamBoolean;
         case 45: return Type::StreamDouble; case 46: return Type::PolyDouble;
         case 47: return Type::MonoDouble; case 48: return Type::Mono4Double;
@@ -173,19 +177,33 @@ public:
         if (wrap > 4) fail("Invalid brush wrap mode");
         return yellow::BrushWrap(wrap);
     }
-    yellow::Bitmap textureBitmap() {
-        auto bytes = take(count(limit));
+    yellow::Bitmap rasterBitmap(QByteArray bytes, const QString& description) {
         if (bytes.isEmpty()) return {};
         QBuffer buffer(&bytes); buffer.open(QIODevice::ReadOnly);
         QImageReader reader(&buffer);
         const auto size = reader.size();
-        if (!size.isValid() || qint64(size.width()) * size.height() > limit / 4) fail("Invalid texture image size");
+        if (!size.isValid() || qint64(size.width()) * size.height() > (limit - decodedImageBytes) / 4)
+            fail("Invalid " + description + " image size or decoded image limit exceeded");
         auto image = reader.read().convertToFormat(QImage::Format_RGBA8888);
-        if (image.isNull() || image.size() != size) fail("Invalid texture image");
+        if (image.isNull() || image.size() != size) fail("Invalid " + description + " image");
+        decodedImageBytes += qsizetype(size.width()) * size.height() * 4;
         std::vector<std::uint8_t> pixels(qsizetype(size.width()) * size.height() * 4);
         for (int y = 0; y < size.height(); ++y)
             std::copy_n(image.constScanLine(y), size.width() * 4, pixels.data() + qsizetype(y) * size.width() * 4);
         return {size.width(), size.height(), std::move(pixels)};
+    }
+    yellow::Bitmap textureBitmap() { return rasterBitmap(take(count(limit)), "texture"); }
+    yellow::Bitmap bitmapRecord() {
+        if (version >= 160) { boolean(); if (boolean()) connectorLayout(); }
+        if (!boolean()) return rasterBitmap(take(count(limit)), "Bitmap");
+        const auto index = std::bit_cast<qint32>(u32());
+        if (index == -1) return {};
+        if (index < 0 || quint32(index) >= imageResources.size()) fail("Invalid Bitmap image resource index");
+        auto found = decodedImages.find(index);
+        if (found == decodedImages.end())
+            found = decodedImages.emplace(index, rasterBitmap(imageResources[index], "Bitmap resource")).first;
+        // Decode each shared resource once; converted projects embed the node's image pixels.
+        return found->second;
     }
     std::optional<yellow::PaintTool> paintTool() {
         const auto kind = version >= 167 ? u32() : 1;
@@ -412,6 +430,7 @@ public:
                 if (source >= out.children.size() || target >= out.children.size()) fail("Invalid link node index");
                 auto& a = out.children[source]; auto& b = out.children[target];
                 const auto portCount = [](const FlowStoneNode& c, bool output) {
+                    if (c.nativeTag == 105) return output ? 3 : 4;
                     if (c.nativeTag == 16 || c.nativeTag == 400) return output ? 3 : c.nativeTag == 400 ? 4 : 5;
                     if (c.nativeTag == 1191 || c.nativeTag == 1192) return output ? 1 : c.nativeTag == 1191 ? 3 : 2;
                     if (c.nativeTag == 131 || c.nativeTag == 132) return output ? 1 : c.nativeTag == 131 ? 4 : 3;
@@ -425,6 +444,9 @@ public:
                 // Reject an actual connection explicitly; never discard it as unused metadata.
                 if ((b.nativeTag == 131 && input == 3) || (b.nativeTag == 132 && input == 2))
                     fail("Linked Redraw HiRes inputs are not supported yet");
+                if (b.nativeTag == 105 && input == 2) fail("Linked Bitmap Paste inputs are not supported yet");
+                // Bitmap has a native clipboard-Paste socket before Clear.
+                if (b.nativeTag == 105 && input == 3) input = 2;
                 // Keep native indices until the complete hierarchy's source links resolve.
                 SchematicLink link{source + 1, target + 1, input, output};
                 if (!unique.insert(link).second) fail("Duplicate link");
@@ -445,6 +467,7 @@ public:
         } else {
             n.x = u16() * 16.0; n.y = u16() * 16.0; n.label = string();
             switch (tag) {
+            case 105: n.kind = Bitmap; n.localValue = bitmapRecord(); break;
             case 16: case 400: case 1191: case 1192:
                 n.kind = tag == 400 || tag == 1192 ? ModulePropertiesGui : ModuleGui;
                 moduleLayout(&out); break;
@@ -541,6 +564,14 @@ public:
                 // Saved count excludes Index (first) and the final spare value input.
                 n.typeOverride = type(u32()); n.inputTriggers.resize(inputs + 2); break;
             }
+            case 149: {
+                n.kind = Multiplexer;
+                const auto outputs = count(4096); // Excludes the final spare output.
+                n.typeOverride = type(u32());
+                n.flowStoneRoutingBranches = outputs;
+                n.outputTriggers.resize(outputs + 1);
+                break;
+            }
             case 138: case 139: {
                 n.kind = tag == 138 ? ModuleInput : ModuleOutput;
                 n.boundaryType = type(u32()); n.typeOverride = n.boundaryType;
@@ -592,7 +623,41 @@ public:
                 break;
             case 429: n.kind = FromDecibel; genericMath(n); break;
             case 258: n.kind = AfterLoad; break;
+            case 166: n.kind = MidiCC; break; // No primitive-specific state.
             case 326: n.kind = BasicCounter; n.localValue = std::bit_cast<qint32>(u32()); break;
+            case 237:
+                n.kind = DropList;
+                // Native Drop List stores only its selected index. Keeping it
+                // as an Int also selects the native value/notification policy.
+                n.localValue = std::bit_cast<qint32>(u32());
+                break;
+            case 189: {
+                n.kind = PresetFloat;
+                auto& parameter = n.presetParameter.emplace();
+                const auto programs = count(maxPresetPrograms);
+                for (quint32 program = 0; program < programs; ++program)
+                    parameter.saved.emplace(program, std::bit_cast<float>(u32()));
+                const bool locked = boolean();
+                parameter.current = std::bit_cast<float>(u32());
+                const auto order = std::bit_cast<float>(u32());
+                parameter.flowStoneFloat = PresetParameterState::FlowStoneFloat{locked, order, programs == 0};
+                // Native OnInit refreshes this recording cache from the live Rec input.
+                boolean();
+                if (version >= 162) {
+                    if (version >= 164) {
+                        const auto binding = std::bit_cast<qint32>(u32());
+                        if (binding != -1) fail("Preset automation bindings are not supported yet");
+                    }
+                    if (version >= 163) {
+                        // Four editor flags for the automation lane; no lane is
+                        // restored unless it has an actual recording below.
+                        for (int flag = 0; flag < 4; ++flag) boolean();
+                    } else if (std::bit_cast<qint32>(u32()) > 0) fail("Preset automation bindings are not supported yet");
+                    if (version >= 164) u32(); // cached automation-lane index
+                    if (count()) fail("Preset automation recordings are not supported yet");
+                }
+                break;
+            }
             case 408: {
                 n.kind = IndexSelector;
                 const auto width = real("Index Selector width"), height = real("Index Selector height");
@@ -605,6 +670,12 @@ public:
                 break;
             }
             case 1056: n.kind = TriggerBlocker; genericMath(n); break;
+            case 1054:
+                n.kind = LastSwitch; genericMath(n);
+                n.lastSwitchInput = u8();
+                if (n.lastSwitchInput > 1) fail("Invalid Last Switch input index");
+                n.flowStoneRoutingBranches = 2;
+                break;
             case 1060: n.kind = TriggerSwitch; genericMath(n); break;
             case 1057:
                 n.kind = Select; genericMath(n);
@@ -620,6 +691,13 @@ public:
                 break;
             case 33: n.kind = Sine; break;
             case 1148: n.kind = DoubleSine; break;
+            case 27: case 72: case 157: case 196: n.kind = Sawtooth; break;
+            case 1149: n.kind = DoubleSawtooth; break;
+            case 165: n.kind = Triangle; break;
+            case 1150: n.kind = DoubleTriangle; break;
+            case 32: n.kind = Ramp; break;
+            case 36: n.kind = Impulse; break;
+            case 533: n.kind = Glide; break;
             case 35: n.kind = StreamPitchToFreq; break;
             case 30: n.kind = DelayOneSample; break;
             case 205: n.kind = Pack; break;
@@ -861,8 +939,8 @@ public:
             if (fonts) warning("Embedded font resources are not imported yet.");
             while (fonts--) blob();
         }
-        auto images = count(4096); if (images) warning("Embedded image resources are not imported yet.");
-        while (images--) blob();
+        auto images = count(4096);
+        while (images--) imageResources.push_back(take(count(limit)));
         if (version >= 161) {
             skip(8 + 6 * 8); boolean();
             if (count()) fail("Sequencer tracks are not supported yet");

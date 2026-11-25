@@ -5,6 +5,7 @@
 #include <charconv>
 #include <cmath>
 #include <limits>
+#include <map>
 
 namespace openstone {
 namespace {
@@ -95,6 +96,60 @@ DropListContents parseDropList(std::string_view list)
     return contents;
 }
 
+struct NativeDropListContents {
+    DropListContents menu;
+    std::map<int, std::string> labels;
+    std::int32_t count = 0;
+
+    bool valid(int index) const {
+        const auto found = labels.find(index);
+        return found != labels.end() && !found->second.empty();
+    }
+    std::string text(int index) const {
+        const auto found = labels.find(index);
+        return found == labels.end() ? std::string{} : found->second;
+    }
+};
+
+NativeDropListContents parseNativeDropList(std::string_view list)
+{
+    struct Record { std::string text; int depth, index; };
+    std::vector<Record> records;
+    int depth = 0, index = 0;
+    for (const auto token : listTokens(list)) {
+        if (token == "<<") { ++depth; continue; }
+        if (token == ">>") { depth = std::max(0, depth - 1); continue; }
+        if (token.empty()) continue;
+        if (!records.empty() && records.back().depth < depth) {
+            records.back().index = -1;
+            --index;
+        }
+        records.push_back({std::string(token), depth, index++});
+    }
+    NativeDropListContents result;
+    result.count = static_cast<std::int32_t>(records.size());
+    result.menu.options.resize(index); // Separators reserve IDs but cannot be chosen.
+    std::vector<std::pair<int, int>> path{{0, 0}};
+    for (std::size_t i = 0; i < records.size(); ++i) {
+        const auto& record = records[i];
+        while (path.size() > 1 && record.depth < path.back().first) path.pop_back();
+        const bool separator = record.text == "-----";
+        result.labels.try_emplace(record.index, separator ? std::string{} : record.text);
+        if (record.index >= 0 && !separator) result.menu.options[record.index] = record.text;
+        if (i + 1 < records.size() && records[i + 1].depth > record.depth) {
+            const int submenu = static_cast<int>(result.menu.menus.size());
+            result.menu.menus[path.back().second].push_back({.text = record.text, .submenu = submenu});
+            result.menu.menus.emplace_back();
+            path.emplace_back(records[i + 1].depth, submenu);
+        } else if (separator) {
+            result.menu.menus[path.back().second].emplace_back();
+        } else {
+            result.menu.menus[path.back().second].push_back({.text = record.text, .optionIndex = record.index});
+        }
+    }
+    return result;
+}
+
 std::vector<std::string> popupOptionsFrom(std::string_view list)
 {
     const auto tokens = listTokens(list);
@@ -137,6 +192,13 @@ void readLayout(std::string style, DropListRequest& request)
 
 green::Value Schematic::readDropList(const SchematicNode& entry, int output) const
 {
+    if (entry.localValue) {
+        const auto index = std::get<std::int32_t>(*entry.localValue);
+        if (output == selectedIndexOutput) return index;
+        const auto contents = parseNativeDropList(std::get<std::string>(readInput(entry.id, listInput)));
+        if (output == selectedStringOutput) return contents.text(index);
+        if (output == countOutput) return contents.count;
+    }
     const auto& selected = entry.dropListSelection;
     switch (output) {
     case selectedStringOutput: return selected ? selected->text : std::string{};
@@ -313,6 +375,17 @@ void Schematic::receivePopupListTrigger(SchematicNode& entry, int input)
 
 void Schematic::receiveDropListTrigger(SchematicNode& entry, int input)
 {
+    // Imported Drop Lists retain the native signed index in localValue. List
+    // and Check events change readable values without publishing output pulses.
+    if (entry.localValue && (input == listInput || input == checkInput)) {
+        const bool connected = hasValueInput(entry.id, checkInput);
+        if (input == checkInput && !connected) return;
+        const auto contents = parseNativeDropList(std::get<std::string>(readInput(entry.id, listInput)));
+        const auto checked = connected ? std::get<std::int32_t>(readInput(entry.id, checkInput)) : 0;
+        if (contents.valid(checked)) entry.localValue = checked;
+        else if (input == listInput) entry.localValue = std::int32_t{0};
+        return;
+    }
     if (input == listInput) {
         fireOutput(entry, countOutput);
         return;
@@ -321,12 +394,18 @@ void Schematic::receiveDropListTrigger(SchematicNode& entry, int input)
         return;
     }
     auto view = std::get<yellow::View>(readInput(entry.id, 0));
-    auto contents = parseDropList(std::get<std::string>(readInput(entry.id, listInput)));
+    const auto list = std::get<std::string>(readInput(entry.id, listInput));
+    auto native = entry.localValue ? std::optional{parseNativeDropList(list)} : std::nullopt;
+    auto contents = native ? std::move(native->menu) : parseDropList(list);
     const green::Point position{std::get<float>(readInput(entry.id, 1)), std::get<float>(readInput(entry.id, 2))};
     if (view.panel == 0 || contents.options.empty() || !std::isfinite(position.x) || !std::isfinite(position.y)) {
         return;
     }
     const int check = std::get<std::int32_t>(readInput(entry.id, checkInput));
+    if (native) {
+        const auto selected = hasValueInput(entry.id, checkInput) ? check : 0;
+        entry.localValue = std::int32_t{native->valid(selected) ? selected : 0};
+    }
     auto& root = rootGraph();
     DropListRequest request{nextDropListToken(), path_, entry.id, std::move(view), position, std::move(contents), check};
     readLayout(std::get<std::string>(readInput(entry.id, styleInput)), request);
@@ -418,11 +497,16 @@ void Schematic::finishDropList(std::uint64_t token, std::optional<int> selection
         }
         return;
     }
+    if (selection && entry->localValue) {
+        const auto contents = parseNativeDropList(std::get<std::string>(owner->readInput(entry->id, listInput)));
+        if (!contents.valid(*selection)) selection.reset();
+    }
     if (!selection) {
         owner->fireOutput(*entry, canceledOutput);
         return;
     }
-    entry->dropListSelection = DropListSelection{*selection, std::move(request.contents.options[*selection])};
+    if (entry->localValue) entry->localValue = std::int32_t{*selection};
+    else entry->dropListSelection = DropListSelection{*selection, std::move(request.contents.options[*selection])};
     owner->fireOutput(*entry, selectedStringOutput);
     owner->fireOutput(*entry, selectedIndexOutput);
 }

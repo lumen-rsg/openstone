@@ -1326,6 +1326,14 @@ std::size_t expandablePortCount(auto&& links, int SchematicLink::*index, std::si
     return count;
 }
 
+std::size_t expandableOutputCount(const SchematicNode& entry, auto&& links)
+{
+    auto count = expandablePortCount(links, &SchematicLink::output);
+    if (entry.kind == PrimitiveKind::Multiplexer && entry.flowStoneRoutingBranches)
+        count = std::max(count, std::size_t(*entry.flowStoneRoutingBranches) + 1);
+    return count;
+}
+
 double comparisonNumber(const Value& value)
 {
     if (const auto* integer = std::get_if<std::int32_t>(&value)) {
@@ -2335,6 +2343,8 @@ int Schematic::routerSelection(const SchematicNode& entry) const
 {
     const auto selected = std::get<std::int32_t>(readInput(entry.id, 0));
     const auto count = entry.kind == PrimitiveKind::Selector ? entry.inputTriggers.size() - 1 : entry.outputTriggers.size();
+    if (entry.kind == PrimitiveKind::Multiplexer && entry.flowStoneRoutingBranches)
+        return std::clamp(selected, 0, std::max(0, int(count) - 2));
     return selected >= 0 && std::cmp_less(selected, count) ? selected : -1;
 }
 
@@ -2359,6 +2369,7 @@ Value Schematic::readGreenLogic(const SchematicNode& entry, Type type, int outpu
         return input ? readInput(id, *input) : defaultValue(type);
     }
     case LastSwitch: {
+        if (entry.flowStoneRoutingBranches) return readInput(id, entry.lastSwitchInput);
         const auto linked = [&](int port) {
             return std::ranges::any_of(links_, [=](auto link) { return link.target == id && link.input == port; });
         };
@@ -2485,7 +2496,7 @@ void Schematic::receiveGreenLogicTrigger(SchematicNode& entry, int input)
         }
         break;
     case Multiplexer: {
-        const auto selected = std::get<std::int32_t>(readInput(id, 0));
+        const auto selected = entry.flowStoneRoutingBranches ? routerSelection(entry) : std::get<std::int32_t>(readInput(id, 0));
         const auto publish = [&](int branch) {
             if (branch >= 0 && std::cmp_less(branch, entry.outputTriggers.size())) fireOutput(entry, branch);
         };
@@ -2493,8 +2504,9 @@ void Schematic::receiveGreenLogicTrigger(SchematicNode& entry, int input)
             const auto previous = std::exchange(entry.localValue, selected);
             const auto oldBranch = previous ? std::get<std::int32_t>(*previous) : 0;
             const auto type = outputType(id);
-            if (selected == oldBranch || (type && (*type == Type::Trigger || green::deliversDiscreteEvents(*type)))) return;
-            publish(oldBranch);
+            if (selected == oldBranch || (!entry.flowStoneRoutingBranches && type &&
+                (*type == Type::Trigger || green::deliversDiscreteEvents(*type)))) return;
+            if (!entry.flowStoneRoutingBranches) publish(oldBranch);
         }
         publish(selected);
         return;
@@ -2632,7 +2644,8 @@ void Schematic::primeGreenLogic()
 
         // A restored graph establishes its current state without emitting a transition.
         try {
-            entry.localValue = readInput(entry.id, 0);
+            entry.localValue = entry.kind == Multiplexer && entry.flowStoneRoutingBranches
+                ? Value{std::int32_t{routerSelection(entry)}} : readInput(entry.id, 0);
         } catch (const std::logic_error&) {
             // Upstream values may be temporarily unreadable while editing a schematic.
         }
@@ -3520,6 +3533,8 @@ Schematic::NodePorts Schematic::makePorts(green::Runtime& runtime, const Schemat
             if (entry.kind == PresetManager && index == 0) initial = std::int32_t{1};
             if (entry.kind == PresetLoad && index == 5) initial = std::numeric_limits<std::int32_t>::max();
             if (entry.kind == PresetSave && index == 5) initial = std::int32_t{1};
+            if (entry.kind == PresetFloat && index == 9 && entry.presetParameter && entry.presetParameter->flowStoneFloat)
+                initial = entry.presetParameter->flowStoneFloat->order;
             if (((entry.kind == PresetFloat || entry.kind == PresetBool || entry.kind == PresetBypass) &&
                  (index == 5 || index == 6 || index == 8)) ||
                 (entry.kind == PresetString && index == 5) ||
@@ -4213,7 +4228,7 @@ Schematic::RuntimeBuild Schematic::buildRuntime(bool keepTypes)
             }
             if (hasExpandableOutputs(entry.kind)) {
                 auto outgoing = links_ | std::views::filter([&](auto link) { return link.source == entry.id; });
-                types.outputs.resize(expandablePortCount(outgoing, &SchematicLink::output), types.outputs.front());
+                types.outputs.resize(expandableOutputCount(entry, outgoing), types.outputs.front());
             }
             build.ports.emplace(entry.id, NodePorts{{}, {}, std::move(types)});
         }
@@ -4399,7 +4414,7 @@ std::map<int, Schematic::NodePorts> Schematic::resolvePorts(const RuntimeBuilds*
         }
         auto types = resolveTypes(entry, sources, hints[id]);
         if (hasExpandableOutputs(entry.kind)) {
-            types.outputs.resize(expandablePortCount(outgoing[id], &SchematicLink::output), types.outputs.front());
+            types.outputs.resize(expandableOutputCount(entry, outgoing[id]), types.outputs.front());
         }
         if (entry.kind == PrimitiveKind::BusExtract) {
             if (const auto source = findBusSource(id)) {

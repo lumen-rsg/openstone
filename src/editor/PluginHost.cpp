@@ -193,6 +193,13 @@ bool Schematic::presetParameterStored(const SchematicNode& entry) const
     return entry.kind != PresetBypass && std::get<bool>(readInput(entry.id, parameterPorts(entry.kind).store));
 }
 
+double Schematic::presetParameterOrder(const SchematicNode& entry) const
+{
+    const auto value = readInput(entry.id, parameterPorts(entry.kind).order);
+    const double order = std::holds_alternative<float>(value) ? double(std::get<float>(value)) : double(std::get<int>(value));
+    return std::isnan(order) ? 0 : order;
+}
+
 green::Value Schematic::presetValueForProgram(const SchematicNode& entry, int program) const
 {
     if (entry.presetParameter) {
@@ -212,7 +219,8 @@ green::Value Schematic::presetValueForProgram(const SchematicNode& entry, int pr
 green::Value Schematic::defaultPresetParameter(const SchematicNode& entry) const
 {
     auto value = readInput(entry.id, parameterPorts(entry.kind).fallback);
-    if (auto* number = std::get_if<float>(&value)) *number = normalized(*number);
+    if (auto* number = std::get_if<float>(&value); number &&
+        (!entry.presetParameter || !entry.presetParameter->flowStoneFloat)) *number = normalized(*number);
     if (entry.kind != PresetArray) return value;
     const int size = hasValueInput(entry.id, 1) ? std::get<int>(readInput(entry.id, 1)) : 1;
     return FloatArray(std::clamp(size, 0, maxPresetArraySize), std::get<float>(value));
@@ -220,6 +228,8 @@ green::Value Schematic::defaultPresetParameter(const SchematicNode& entry) const
 
 green::Value Schematic::currentPresetParameter(const SchematicNode& entry) const
 {
+    if (entry.presetParameter && entry.presetParameter->flowStoneFloat && entry.presetParameter->flowStoneFloat->inactive)
+        return 0.f;
     if (!entry.presetParameter || !entry.presetParameter->current) return defaultPresetParameter(entry);
     auto value = *entry.presetParameter->current;
     if (entry.kind == PresetArray && hasValueInput(entry.id, 1)) {
@@ -245,7 +255,7 @@ void Schematic::changePresetParameter(SchematicNode& entry, green::Value value, 
     if (state.dispatching) return;
     const DispatchGuard dispatch(state.dispatching);
     const auto previous = currentPresetParameter(entry);
-    const bool changed = value != previous;
+    const bool changed = value != previous || (edit && state.flowStoneFloat);
     const bool array = entry.kind == PresetArray;
     const int before = array ? 3 : 1;
     if (changed) fireOutput(entry, before);
@@ -254,6 +264,8 @@ void Schematic::changePresetParameter(SchematicNode& entry, green::Value value, 
         const auto bus = std::get<Preset>(readInput(entry.id, 0));
         if (const auto* program = std::get_if<PresetProgramChange>(&bus); program && !program->locked) {
             state.saved.insert_or_assign(program->program, *state.current);
+        } else if (state.flowStoneFloat && !std::holds_alternative<PresetProgramChange>(bus) && !state.flowStoneFloat->locked) {
+            state.saved.insert_or_assign(0, *state.current);
         }
     }
     if (!changed) return;
@@ -291,6 +303,10 @@ void Schematic::receivePresetParameter(SchematicNode& entry, int input)
         if (!program) return;
         if (!entry.presetParameter) entry.presetParameter.emplace();
         auto& state = *entry.presetParameter;
+        if (state.flowStoneFloat) {
+            state.flowStoneFloat->locked = program->locked;
+            state.flowStoneFloat->inactive = false;
+        }
         const int index = static_cast<int>(program->program);
         switch (program->action) {
         case PresetAction::Save:
@@ -314,9 +330,15 @@ void Schematic::receivePresetParameter(SchematicNode& entry, int input)
         return;
     }
     if (!array) {
+        if (input == 9 && entry.presetParameter && entry.presetParameter->flowStoneFloat) {
+            entry.presetParameter->flowStoneFloat->order = std::get<float>(readInput(entry.id, input));
+            return;
+        }
         if (input != 1) return;
+        if (entry.presetParameter && entry.presetParameter->flowStoneFloat && entry.presetParameter->flowStoneFloat->inactive) return;
         auto value = readInput(entry.id, input);
-        if (auto* number = std::get_if<float>(&value)) *number = normalized(*number);
+        if (auto* number = std::get_if<float>(&value); number &&
+            (!entry.presetParameter || !entry.presetParameter->flowStoneFloat)) *number = normalized(*number);
         changePresetParameter(entry, std::move(value), true, true);
         return;
     }
@@ -563,14 +585,14 @@ void Schematic::receivePresetUtility(SchematicNode& entry, int input)
     if (showOrder) {
         struct Row {
             std::string name;
-            int order;
+            double order;
             bool automated;
         };
         std::vector<Row> rows;
         for (auto [level, parameter] : presetParticipants({})) {
             const bool automatic = level->presetParameterAutomatable(*parameter);
             if (!automatic && !level->presetParameterStored(*parameter)) continue;
-            const int order = std::get<int>(level->readInput(parameter->id, parameterPorts(parameter->kind).order));
+            const auto order = level->presetParameterOrder(*parameter);
             const auto name = level->presetParameterName(*parameter);
             if (parameter->kind == PresetArray) {
                 const auto values = std::get<FloatArray>(level->currentPresetParameter(*parameter));
@@ -614,7 +636,7 @@ void Schematic::receivePresetUtility(SchematicNode& entry, int input)
         if (binary) {
             std::ranges::stable_sort(participants, {}, [](const auto& participant) {
                 const auto [level, parameter] = participant;
-                return std::get<int>(level->readInput(parameter->id, parameterPorts(parameter->kind).order));
+                return level->presetParameterOrder(*parameter);
             });
         }
         const bool current = std::get<bool>(readInput(entry.id, saveFile ? 3 : 2));
@@ -982,7 +1004,7 @@ void Schematic::collectPluginParameters(std::vector<PluginParameter>& parameters
         const auto unit = std::get<std::string>(readInput(entry.id, array ? 6 : 4));
         const auto display = std::get<std::string>(readInput(entry.id, array ? 5 : 3));
         const auto name = presetParameterName(entry);
-        const auto order = std::get<int>(readInput(entry.id, ports.order));
+        const auto order = presetParameterOrder(entry);
         auto path = path_;
         path.push_back(entry.id);
         if (array) {

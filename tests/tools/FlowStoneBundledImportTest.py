@@ -94,6 +94,75 @@ AUDIO_RECORDS = {
     'Moog Filter Pitch to Freq': ('Moog Filter', 0x43a, 35, 'a81d93edb62babf2f90b2110bbfe3946a07cd4b925ab6179cdec3be1a8e04da8'),
 }
 
+GENERATOR_RECORDS = {
+    'Multi Osc Triangle': ('Multi Osc', 0xdc, 165, '7ff84f38208052387da2ab9f4232307b6fe81d295a7263099ebb18428d1529b9'),
+    'Multi Osc Sawtooth': ('Multi Osc', 0x2f1, 27, '7ff84f38208052387da2ab9f4232307b6fe81d295a7263099ebb18428d1529b9'),
+    'Multi LFO Triangle': ('Multi LFO', 0xba, 165, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
+    'Multi LFO Sawtooth': ('Multi LFO', 0x13d, 27, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
+    'PWM Triangle': ('PWM', 0xbd, 165, '9935be89d99054fc61e99d626a96ce9367bfbccd687a58d3bec4a84a6b226e23'),
+}
+
+SQUARE_MODULES = {
+    'Multi Osc': (0xf2, 0x1f7, '7ff84f38208052387da2ab9f4232307b6fe81d295a7263099ebb18428d1529b9'),
+    'Multi LFO': (0x144, 0x226, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
+    'PWM': (0xd3, 0x1b5, '9935be89d99054fc61e99d626a96ce9367bfbccd687a58d3bec4a84a6b226e23'),
+}
+
+
+DROP_LIST_RECORDS = {
+    'Multi LFO Drop List': ('Multi LFO', 0x7eb, 0, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
+    'Detuner Drop List': ('Detuner', 0xcb4, 5, 'bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50'),
+    'Sample and Hold Drop List': ('Sample and Hold', 0x601, 0, 'cce3e17254aa7f9c54dbd02a785a0778c5b7e7fe0fc0481471edd3763b8b86ee'),
+    'PWM Drop List': ('PWM', 0x800, 1, '9935be89d99054fc61e99d626a96ce9367bfbccd687a58d3bec4a84a6b226e23'),
+}
+
+# These contiguous records retain the bundled Items String, Index boundary and
+# Drop List bytes. The test bench supplies their two authored functional links.
+DROP_LIST_ITEMS = {
+    'Multi LFO': (0x75f, 0x7f6, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
+    'Detuner': (0xc2b, 0xcbf, 'bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50'),
+    'Sample and Hold': (0x57d, 0x60c, 'cce3e17254aa7f9c54dbd02a785a0778c5b7e7fe0fc0481471edd3763b8b86ee'),
+}
+
+
+# Preset Float (189): count + 32 Float words + lock/current/order/recording cache.
+# Only hashes and byte locations are public; the native library stays external.
+PRESET_RECORDS = {
+    'Multi LFO': (0x834, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
+    'Detuner': (0xcfd, 'bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50'),
+    'Sample and Hold': (0x64a, 'cce3e17254aa7f9c54dbd02a785a0778c5b7e7fe0fc0481471edd3763b8b86ee'),
+}
+
+
+# Native Multiplexer is ID 149; 1054 is Last Switch, despite an earlier audit note.
+NATIVE_ROUTER_RECORDS = {
+    'Alpha Switch Multiplexer': ('Alpha Switch', 0xbe, 15, '3aa0ec27a8081e3fc9c9dd2ef71b869f4371b73176f3ff5b9ff2be5bdf619cce'),
+    'Timed Counter Multiplexer': ('0-1 Timed Counter', 0xe4e, 15, '1352145ca7798c5791b6363996bd2e60a773dabf30735cecb1d0d1a16ecc6f36'),
+    'Multi LFO Last Switch second': ('Multi LFO', 0x99c, 44, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
+    'Multi LFO Last Switch first': ('Multi LFO', 0xbe8, 44, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
+    'Detuner Last Switch second': ('Detuner', 0xe63, 44, 'bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50'),
+    'Detuner Last Switch first': ('Detuner', 0x10b3, 44, 'bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50'),
+    'Sample and Hold Last Switch second': ('Sample and Hold', 0x7b7, 44, 'cce3e17254aa7f9c54dbd02a785a0778c5b7e7fe0fc0481471edd3763b8b86ee'),
+    'Sample and Hold Last Switch first': ('Sample and Hold', 0xa00, 44, 'cce3e17254aa7f9c54dbd02a785a0778c5b7e7fe0fc0481471edd3763b8b86ee'),
+}
+
+
+# Payload-free MIDI CC (166) and complete native CC/enable/normalization modules.
+MIDI_CC_MODULES = {
+    'Multi LFO': (0xc3f, 0xddb, 0xc5a, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
+    'Detuner': (0x110a, 0x12a6, 0x1125, 'bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50'),
+    'Sample and Hold': (0xa57, 0xbf3, 0xa72, 'cce3e17254aa7f9c54dbd02a785a0778c5b7e7fe0fc0481471edd3763b8b86ee'),
+}
+
+
+# Unchanged inline-PNG records. Vendor pixels remain in the external test corpus.
+BITMAP_RECORDS = {
+    'Multi LFO Speed Bitmap': ('Multi LFO', 0x2168, 4168, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
+    'Multi LFO Depth Bitmap': ('Multi LFO', 0x493b, 4168, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
+    'Detuner Bitmap': ('Detuner', 0x337e, 4215, 'bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50'),
+}
+
+
 def gui_record_document(record, name, version, *, node_count=1, links=()):
     header = struct.pack('<HIIH', version, 1, 1, 0) + bytes(3) + b'\1' + bytes(12)
     if version >= 171: header += bytes(4)
@@ -334,6 +403,113 @@ def main():
             archive.writestr('schematic.osm', gui_record_document(record, name, struct.unpack_from('<H', data)[0]))
         paths.append(str(path))
     subprocess.run([str(args.probe.resolve()), '--audio-records', *paths], check=True)
+
+    paths = []
+    for name, (source, offset, tag, digest) in GENERATOR_RECORDS.items():
+        data = (args.flowstone_root / 'Modules' / (source + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled generator module hash changed: ' + source)
+        record = data[offset:offset + 7]
+        if len(record) != 7 or struct.unpack_from('<H', record)[0] != tag or record[-1] != 0:
+            raise ValueError('Unexpected native generator record: ' + name)
+        path = args.output / (name + '.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', gui_record_document(record, name, struct.unpack_from('<H', data)[0]))
+        paths.append(str(path))
+    subprocess.run([str(args.probe.resolve()), '--generator-records', *paths], check=True)
+
+    paths = []
+    for name, (source, offset, size, digest) in BITMAP_RECORDS.items():
+        data = (args.flowstone_root / 'Modules' / (source + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled Bitmap module hash changed: ' + source)
+        record = data[offset:offset + size]
+        if len(record) != size or struct.unpack_from('<H', record)[0] != 105 or record[6:8] != bytes(2) or struct.unpack_from('<I', record, 8)[0] != size - 12:
+            raise ValueError('Unexpected native Bitmap record: ' + name)
+        path = args.output / (name + '.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', gui_record_document(record, name, struct.unpack_from('<H', data)[0]))
+        paths.append(str(path))
+    subprocess.run([str(args.probe.resolve()), '--bitmap-records', *paths], check=True)
+
+    records, modules = [], []
+    for source, (start, end, offset, digest) in MIDI_CC_MODULES.items():
+        data = (args.flowstone_root / 'Modules' / (source + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled MIDI CC module hash changed: ' + source)
+        record = data[offset:offset + 7]
+        if len(record) != 7 or struct.unpack_from('<H', record)[0] != 166 or record[6] != 0:
+            raise ValueError('Unexpected native MIDI CC record: ' + source)
+        record_path = args.output / (source + ' MIDI CC record.fsm')
+        version = struct.unpack_from('<H', data)[0]
+        with zipfile.ZipFile(record_path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', gui_record_document(record, source + ' MIDI CC', version))
+        records.append(str(record_path))
+        module_path = args.output / (source + ' MIDI CC module.fsm')
+        with zipfile.ZipFile(module_path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', wrap(data[:end], 'MIDI CC', version, start))
+        modules.append(str(module_path))
+    subprocess.run([str(args.probe.resolve()), '--midi-cc-records', *records], check=True)
+    subprocess.run([str(args.probe.resolve()), '--midi-cc-modules', *modules], check=True)
+
+    paths = []
+    for name, (source, offset, size, digest) in NATIVE_ROUTER_RECORDS.items():
+        data = (args.flowstone_root / 'Modules' / (source + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled router module hash changed: ' + source)
+        record = data[offset:offset + size]
+        tag = 149 if size == 15 else 1054
+        if len(record) != size or struct.unpack_from('<H', record)[0] != tag or record[6] != 0:
+            raise ValueError('Unexpected native router record: ' + name)
+        path = args.output / (name + '.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', gui_record_document(record, name, struct.unpack_from('<H', data)[0]))
+        paths.append(str(path))
+    subprocess.run([str(args.probe.resolve()), '--router-records', *paths], check=True)
+
+    paths = []
+    for source, (offset, digest) in PRESET_RECORDS.items():
+        data = (args.flowstone_root / 'Modules' / (source + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled Preset module hash changed: ' + source)
+        record = data[offset:offset + 149]
+        if len(record) != 149 or struct.unpack_from('<H', record)[0] != 189 or record[6] != 0 or struct.unpack_from('<I', record, 7)[0] != 32:
+            raise ValueError('Unexpected native Preset record: ' + source)
+        path = args.output / (source + ' Preset.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', gui_record_document(record, source + ' Preset', struct.unpack_from('<H', data)[0]))
+        paths.append(str(path))
+    subprocess.run([str(args.probe.resolve()), '--preset-records', *paths], check=True)
+
+    paths = []
+    for name, (source, offset, selected, digest) in DROP_LIST_RECORDS.items():
+        data = (args.flowstone_root / 'Modules' / (source + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled Drop List module hash changed: ' + source)
+        record = data[offset:offset + 11]
+        if len(record) != 11 or struct.unpack_from('<H', record)[0] != 237 or record[6] != 0 or struct.unpack_from('<i', record, 7)[0] != selected:
+            raise ValueError('Unexpected native Drop List record: ' + name)
+        path = args.output / (name + '.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', gui_record_document(record, name, struct.unpack_from('<H', data)[0]))
+        paths.append(str(path))
+    subprocess.run([str(args.probe.resolve()), '--drop-list-records', *paths], check=True)
+
+    paths = []
+    for source, (offset, end, digest) in DROP_LIST_ITEMS.items():
+        data = (args.flowstone_root / 'Modules' / (source + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled Drop List items hash changed: ' + source)
+        record = data[offset:end]
+        path = args.output / (source + ' Drop List items.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', gui_record_document(record, source + ' Items', struct.unpack_from('<H', data)[0],
+                node_count=3, links=[(0, 0, 2, 3), (2, 1, 1, 0)]))
+        paths.append(str(path))
+    subprocess.run([str(args.probe.resolve()), '--drop-list-items', *paths], check=True)
+
+    paths = []
+    for source, (offset, end, digest) in SQUARE_MODULES.items():
+        data = (args.flowstone_root / 'Modules' / (source + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled Square module hash changed: ' + source)
+        path = args.output / (source + ' Square.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', wrap(data[:end], 'Square', struct.unpack_from('<H', data)[0], offset))
+        paths.append(str(path))
+    subprocess.run([str(args.probe.resolve()), '--square-modules', *paths], check=True)
     data = (args.flowstone_root / 'Modules' / 'Echo Delay.hom').read_bytes()
     if hashlib.sha256(data).hexdigest() != AUDIO_RECORDS['Echo Delay native Delay'][3]: raise ValueError('Bundled Echo Delay module hash changed')
     path = args.output / 'Echo Delay Echo module.fsm'

@@ -27,6 +27,14 @@ struct PresetManagerState {
 struct PresetParameterState {
     std::optional<green::Value> current;
     std::map<int, green::Value> saved;
+    // Native .fsm Preset Float keeps an unconnected lock and a floating-point
+    // ordering key. Its values are not clamped to the host's normalized range.
+    struct FlowStoneFloat {
+        bool locked = false;
+        float order = -1;
+        bool inactive = false; // Native bank has no addressable program yet.
+    };
+    std::optional<FlowStoneFloat> flowStoneFloat;
     bool dispatching = false;
 };
 
@@ -80,7 +88,7 @@ struct PluginParameter {
     std::string name;
     std::string display;
     std::string units;
-    int order;
+    double order;
     float value;
     float initial;
     bool discrete;
