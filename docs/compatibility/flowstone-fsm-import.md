@@ -79,11 +79,12 @@ are not silently replaced with empty modules or disconnected nodes.
   typed/Automatic Green value connectors and fixed Boolean control inputs.
   Trigger Switch also accepts a Trigger-only signal. The native connector order,
   type/lock lists and Select's saved condition-notification cache are retained.
-- Index Selector (408), Counter (326), and After Load (258). Index Selector
+- Index Selector (408), Counter (326), After Load (258), and After Duplicate (551). Index Selector
   retains its selected index and consumes its native size/property-box layout;
   its List/Sort/Set and Index/Text ports use OpenStone's existing node menu.
   Counter retains its signed count and Inc/Reset connectors. After Load fires
-  through the converted graph once per schematic open.
+  through the converted graph once per schematic open. After Duplicate fires
+  only in newly copied nodes/modules, after their internal links are restored.
 - Drop List (237), including its signed selected index and native
   View/X/Y/List/Open/Check/Style inputs. The Text/Index/Number of Options/Canceled
   outputs keep their original order. Native selection and menu-index policies
@@ -269,6 +270,28 @@ As with imported value-box property layouts, FlowStone's custom property-box
 appearance is consumed with bounds checks and reported as a conversion limit.
 Converted buttons use OpenStone's existing editor control; this pass does not
 recreate the native property-panel widget or its Windows styling.
+
+## After Duplicate conversion
+
+After Duplicate (551) has no inputs and one Trigger output at index 0. Its
+primitive-specific load/save functions are empty: with an empty caption the
+complete record is seven bytes (component ID, grid coordinates and empty MFC
+string). No last-event state or native pointer is imported.
+
+It maps to OpenStone's existing After Duplicate lifecycle primitive. Importing,
+opening, rebuilding runtime wiring, copying to the clipboard and reopening a
+saved project do not emit its event. Duplicating or pasting a module emits one
+event only inside the new copy, recursively including nested modules, after
+the copied links exist. The source and its external receivers remain quiet.
+Duplicating an already duplicated module creates another single event in the
+new copy. After Load remains a separate event and runs once on project open.
+
+The native Bitmap loader uses both After Load and After Duplicate to trigger
+its Bitmap-typed module output. Those event-only links republish the current
+image; they do not load an image file. Copying retains independent Bitmap
+storage, so a later file selection in the copy updates only that copy's image
+and its Width/Height monitors. Project serialization uses the ordinary
+After Duplicate primitive kind, with no additional compatibility flag.
 
 ## Native routing conversion
 
@@ -665,6 +688,9 @@ Useful serializer addresses in that build (image base `0x140000000`):
 | Button load / inherited property save | `0x14032e1c0` / `0x1403bfa10` |
 | Button property-base loader | `0x1403bf950` |
 | Button activation dispatch | `0x14032e1d0` |
+| After Duplicate (551) factory / constructor | `0x1400d2090` / `0x1402e0510` |
+| After Duplicate specific load/save (no payload) | `0x14000d180` |
+| After Duplicate lifecycle dispatch | `0x1402e0580` |
 | Preset Float factory / constructor | `0x1400d99f0` / `0x140092ff0` |
 | Preset Float load / save | `0x140093f10` / `0x140094460` |
 | Preset Float input / init callbacks | `0x140093cd0` / `0x1400931b0` |
@@ -1138,6 +1164,37 @@ both property flags, present/absent connector layouts, anchor metadata, module
 boundaries, trigger fan-out, captions and grid positions. A following Int record
 checks byte alignment. Truncation at each header/layout byte, invalid Boolean
 flags, excessive box counts and invalid input/output indices reject atomically.
+
+The Button inventory remained **24/124** complete imports/save-reopens. Detuner,
+Multi LFO and Switch passed Button and reached After Duplicate (551).
+
+The After Duplicate pass verifies four unchanged seven-byte records: Multi LFO
+Speed (`0x3208`), Multi LFO Depth (`0x59db`), Detuner (`0x444d`), and Switch
+(`0x901`). Tests exercise duplication, clipboard paste, duplicating a copy and
+duplication after disk save/reopen. Only new copies receive one event; source
+modules and external receivers remain unchanged. Native Counter observers use
+the existing reset-on-copy policy, while project saving retains their values.
+
+Three complete unchanged eight-node/eight-link Bitmap loader submodules are
+also imported: Multi LFO Speed (`0x212c`–`0x326e`), Multi LFO Depth
+(`0x48ff`–`0x5a41`), and Detuner (`0x3342`–`0x44b3`), with end offsets exclusive.
+They retain their original Button, File Dialog, image pixels, dimension monitors,
+Bitmap output and both lifecycle nodes. The copy publishes its image exactly
+once through After Duplicate without loading a file; subsequent selection
+updates only the copy. Both images and all links survive disk save/reopen, which
+fires only After Load. Reopened loader copies remain functional.
+
+Authored records cover versions 154, 159, 161, 166, 171 and 177, direct and nested
+modules, coexistence with native After Load, following-record alignment,
+clipboard isolation, duplicate-time link availability and invalid/truncated
+headers or connector indices. Reopening checks persisted duplicate counters
+separately from expected new After Load events.
+
+The latest inventory remains **24/124** complete enclosing-module imports and
+save/reopens. Detuner and Multi LFO now pass their Bitmap loader submodules and
+reach component 1053 in `Preset/RedrawLimiter`. Switch parses its primitive
+records but stops on an unsupported linked code-source producer. Internal
+submodule tests do not imply full support for those enclosing vendor modules.
 
 Independent GUI fixtures exercise all four panel IDs across versions 154, 155,
 170 and 177; actual text drawing commands; anchor metadata; live legacy size and

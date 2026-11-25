@@ -628,6 +628,7 @@ public:
                 break;
             case 429: n.kind = FromDecibel; genericMath(n); break;
             case 258: n.kind = AfterLoad; break;
+            case 551: n.kind = AfterDuplicate; break;
             case 166: n.kind = MidiCC; break; // No primitive-specific state.
             case 326: n.kind = BasicCounter; n.localValue = std::bit_cast<qint32>(u32()); break;
             case 237:

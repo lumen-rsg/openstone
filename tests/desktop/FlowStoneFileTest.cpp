@@ -2809,6 +2809,143 @@ void afterLoadRoundTrip(const QByteArray& archive) {
     check(SchematicFile::project(reopened)==saved,"After Load and its graph survive disk save/reopen");verify(reopened);
 }
 
+Bytes afterDuplicateDocument(int version, bool nested) {
+    Bytes b; header(b,version); beginModule(b,"Root",1);
+    if (nested) beginModule(b,"Outer",2);
+    beginModule(b,"Lifecycle",6);
+    primitive(b,551,2,3,"Copy event");
+    primitive(b,326,10,3); b.d(0);
+    primitive(b,258,2,6,"Load event");
+    primitive(b,326,10,6); b.d(0);
+    primitive(b,139,20,3); b.d(9); b.b(0); b.str("Duplicated");
+    primitive(b,29,20,6,"Sentinel"); b.f(8); b.b(0); b.b(0); b.d(123);
+    b.w(3); wire(b,version,0,0,1,0); wire(b,version,2,0,3,0); wire(b,version,0,0,4,0); endModule(b);
+    if (nested) {
+        primitive(b,139,30,3); b.d(9); b.b(0); b.str("Duplicated");
+        b.w(1); wire(b,version,0,0,1,0); endModule(b);
+    }
+    b.w(0); endModule(b); b.w(0); b.b(0); return b;
+}
+Schematic& duplicateOwner(Schematic& root, int module, bool nested) {
+    auto* owner=root.module(module); if (owner && nested) owner=owner->module(1);
+    check(owner,"Find imported lifecycle module"); return *owner;
+}
+void exerciseDuplicateLifecycle(Session& s, bool nested) {
+    using enum PrimitiveKind;
+    using green::Value;
+    auto& original=duplicateOwner(s.graph(),1,nested);
+    check(original.nodes()[0].kind==AfterDuplicate && original.inspectOutput(1).triggers==0 &&
+          original.readValue(2)==Value{std::int32_t{0}},"Imported After Duplicate is quiet when the schematic opens");
+    const auto loadPulses=original.inspectOutput(3).triggers;
+    const auto loadCount=std::get<std::int32_t>(original.readValue(4));
+    original.addNode(Int,0,0,std::int32_t{7}); // Rebuilding runtime wiring must not act like a copy.
+    const auto outside=s.graph().addNode(TriggerCounter,0,0);
+    if (!s.graph().nodes()[0].moduleOutputs.empty()) s.graph().connect({1,outside,0},LinkNotification::Silent);
+    check(original.inspectOutput(1).triggers==0,"Runtime rebuilds do not fire After Duplicate");
+    const auto verifyCopy=[&](int id) {
+        auto& copy=duplicateOwner(s.graph(),id,nested); auto& source=duplicateOwner(s.graph(),1,nested);
+        check(!s.takeLifecycleError() && copy.inspectOutput(1).triggers==1 && copy.readValue(2)==Value{std::int32_t{1}} &&
+              copy.inspectOutput(3).triggers==0 && copy.readValue(4)==Value{std::int32_t{0}},
+              "Only the copied After Duplicate fires once, after its internal links exist; After Load stays quiet");
+        check(source.inspectOutput(1).triggers==0 && source.readValue(2)==Value{std::int32_t{0}} &&
+              source.inspectOutput(3).triggers==loadPulses && s.graph().readValue(outside)==Value{std::int32_t{0}},
+              "The original module and its external receiver receive no duplicate event");
+    };
+    const auto first=s.duplicateNodes(std::array{1},24,24); check(first.size()==1,"Duplicate imported module"); verifyCopy(first[0]);
+    s.copyNode(1);
+    check(duplicateOwner(s.graph(),1,nested).inspectOutput(1).triggers==0 &&
+          duplicateOwner(s.graph(),first[0],nested).inspectOutput(1).triggers==1,"Copying to the clipboard fires no lifecycle event");
+    const auto pasted=s.pasteNodes(400,0,false); check(pasted.size()==1,"Paste imported module"); verifyCopy(pasted[0]);
+    const auto copiedAgain=s.duplicateNodes(std::array{first[0]},24,24);
+    check(copiedAgain.size()==1,"Duplicate a previously copied module"); verifyCopy(copiedAgain[0]);
+    check(duplicateOwner(s.graph(),first[0],nested).readValue(2)==Value{std::int32_t{1}},"Duplicating a copy leaves that source unchanged");
+    const std::array modules{1,first[0],pasted[0],copiedAgain[0]};
+    // Counter observers reset when copied, while native Counter values are retained in project files.
+    const std::array expected{0,1,1,1};
+    const std::array loadCounts{loadCount,0,0,0};
+    const auto saved=SchematicFile::project(s); QTemporaryDir dir; const auto file=dir.filePath("after-duplicate.ostone");
+    SchematicFile::write(file,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(file),{});
+    check(!reopened.takeLifecycleError(),"Reopen imported lifecycle graph without errors");
+    for (std::size_t i=0;i<modules.size();++i) {
+        auto& copy=duplicateOwner(reopened.graph(),modules[i],nested);
+        check(copy.inspectOutput(1).triggers==0 && copy.readValue(2)==Value{std::int32_t(expected[i])} &&
+              copy.inspectOutput(3).triggers==1 && copy.readValue(4)==Value{loadCounts[i]+1},
+              "Saving/reopening preserves duplicate counters, runs After Load once and never replays After Duplicate");
+    }
+    const auto fresh=reopened.duplicateNodes(std::array{1},24,24); check(fresh.size()==1,"Duplicate reopened native module");
+    auto& copy=duplicateOwner(reopened.graph(),fresh[0],nested);
+    check(!reopened.takeLifecycleError() && copy.inspectOutput(1).triggers==1 && copy.readValue(2)==Value{std::int32_t{1}} &&
+          copy.inspectOutput(3).triggers==0 && copy.readValue(4)==Value{std::int32_t{0}},"Duplicate lifecycle remains functional after reopening");
+}
+void importedAfterDuplicate() {
+    for (int version : {154,159,161,166,171,177}) for (bool nested : {false,true}) {
+        const auto raw=afterDuplicateDocument(version,nested); Session s; SchematicFile::importFlowStone(s,zip(raw),{});
+        auto& owner=duplicateOwner(s.graph(),1,nested);
+        check(owner.nodes()[5].localValue==green::Value{std::int32_t{123}} && owner.inspectOutput(3).triggers==1,
+              "Payload-free After Duplicate preserves following records and coexists with native After Load");
+        exerciseDuplicateLifecycle(s,nested);
+        Bytes prefix; primitive(prefix,551,2,3,"Copy event"); const auto at=raw.indexOf(prefix); check(at>0,"Locate After Duplicate header");
+        for (int cut=0;cut<prefix.size();++cut) expectError(zip(raw.left(at+cut)),"Truncated");
+        Bytes link; wire(link,version,0,0,1,0); const auto wireAt=raw.indexOf(link,at+prefix.size()); check(wireAt>0,"Locate After Duplicate wire");
+        auto bad=raw; bad[wireAt+3]=1; expectError(zip(bad),"connector index");
+        bad=raw; qToLittleEndian<quint16>(0,bad.data()+wireAt+4); expectError(zip(bad),"connector index");
+    }
+}
+void nativeAfterDuplicateRecord(const QString& path) {
+    using enum PrimitiveKind;
+    Session s; SchematicFile::importFlowStone(s,SchematicFile::read(path),{}); auto& owner=*s.graph().module(1);
+    check(owner.nodes().size()==1 && owner.nodes()[0].kind==AfterDuplicate && owner.nodes()[0].inputPorts().empty() &&
+          owner.nodes()[0].outputPorts().size()==1 && owner.outputType(1)==green::Type::Trigger && owner.inspectOutput(1).triggers==0,
+          "Decode unchanged After Duplicate record without firing it at import");
+    const auto saved=SchematicFile::project(s); QTemporaryDir dir; const auto file=dir.filePath("native-after-duplicate.ostone");
+    SchematicFile::write(file,saved); Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(file),{});
+    check(SchematicFile::project(reopened)==saved && reopened.graph().module(1)->inspectOutput(1).triggers==0,
+          "Native lifecycle record round-trips unchanged without replay");
+    auto& graph=*reopened.graph().module(1);
+    const auto count=graph.addNode(BasicCounter,0,0), load=graph.addNode(AfterLoad,0,0), loadCount=graph.addNode(BasicCounter,0,0);
+    check(count==2 && load==3 && loadCount==4,"Build lifecycle observers around unchanged record");
+    graph.connect({1,count,0},LinkNotification::Silent); graph.connect({load,loadCount,0},LinkNotification::Silent);
+    exerciseDuplicateLifecycle(reopened,false);
+    std::cout<<path.toStdString()<<": native After Duplicate record, copy/paste isolation and disk save/reopen passed\n";
+}
+void nativeBitmapLifecycleModule(const QString& path) {
+    using enum PrimitiveKind;
+    int loads=0; const yellow::Bitmap replacement{2,1,{1,2,3,4,5,6,7,8}};
+    const auto loader=[&](std::string_view selected) { check(selected=="/chosen/copy.png","Native copied picker reads its chosen Path"); ++loads; return replacement; };
+    Session s(loader); SchematicFile::importFlowStone(s,SchematicFile::read(path),{}); auto& source=*s.graph().module(1);
+    check(source.nodes().size()==8 && source.links().size()==8 && source.nodes()[6].kind==AfterDuplicate && source.nodes()[7].kind==AfterLoad &&
+          source.inspectOutput(7).triggers==0 && source.inspectOutput(8).triggers==1 && loads==0,
+          "Import complete unchanged Bitmap module and its distinct Load/Duplicate events");
+    const auto original=std::get<yellow::Bitmap>(s.graph().readValue(1));
+    check(original.width()==32 && original.height()==32 && source.readValue(1)==green::Value{std::int32_t{32}} &&
+          source.readValue(2)==green::Value{std::int32_t{32}},"Native Bitmap module exposes its retained image and dimension caches");
+    const auto originalEvents=s.graph().inspectOutput(1).triggers;
+    const auto copied=s.duplicateNodes(std::array{1},24,24); check(copied.size()==1,"Duplicate native Bitmap loader"); const auto id=copied[0];
+    auto& copy=*s.graph().module(id);
+    check(!s.takeLifecycleError() && copy.inspectOutput(7).triggers==1 && copy.inspectOutput(8).triggers==0 &&
+          s.graph().inspectOutput(id).triggers==1 && std::get<yellow::Bitmap>(s.graph().readValue(id))==original &&
+          source.inspectOutput(7).triggers==0 && s.graph().inspectOutput(1).triggers==originalEvents && loads==0,
+          "Native After Duplicate republishes the copied Bitmap through its original output link without touching the source or loading a file");
+    copy.fireTrigger(6); check(s.graph().pendingAppDialog()->ownerPath==std::vector{id} && s.graph().pendingAppDialog()->node==5,
+          "Copied native Button still targets its own File Dialog");
+    check(s.graph().finishAppDialog(s.graph().pendingAppDialog()->token,true,"/chosen/copy.png") && loads==1 &&
+          std::get<yellow::Bitmap>(s.graph().readValue(id))==replacement && copy.readValue(1)==green::Value{std::int32_t{2}} &&
+          copy.readValue(2)==green::Value{std::int32_t{1}} && std::get<yellow::Bitmap>(s.graph().readValue(1))==original,
+          "Native copied loader updates its own pixels and dimension monitors while the original stays unchanged");
+    const auto saved=SchematicFile::project(s); QTemporaryDir dir; const auto file=dir.filePath("native-bitmap-lifecycle.ostone");
+    SchematicFile::write(file,saved); Session reopened(loader); SchematicFile::loadProject(reopened,SchematicFile::read(file),{});
+    check(!reopened.takeLifecycleError() && SchematicFile::project(reopened)==saved && loads==1 &&
+          reopened.graph().module(1)->inspectOutput(7).triggers==0 && reopened.graph().module(id)->inspectOutput(7).triggers==0 &&
+          reopened.graph().module(1)->inspectOutput(8).triggers==1 && reopened.graph().module(id)->inspectOutput(8).triggers==1 &&
+          std::get<yellow::Bitmap>(reopened.graph().readValue(1))==original && std::get<yellow::Bitmap>(reopened.graph().readValue(id))==replacement,
+          "Complete native loaders save/reopen with their separate images; only After Load fires");
+    const auto again=reopened.duplicateNodes(std::array{id},24,24); check(again.size()==1 && !reopened.takeLifecycleError() &&
+          reopened.graph().module(again[0])->inspectOutput(7).triggers==1 && reopened.graph().module(again[0])->inspectOutput(8).triggers==0 &&
+          std::get<yellow::Bitmap>(reopened.graph().readValue(again[0]))==replacement && loads==1,
+          "Reopened native Bitmap loader remains reusable without duplicate-time disk reads");
+    std::cout<<path.toStdString()<<": complete native Bitmap module, duplicate notifications, independent loading and disk save/reopen passed\n";
+}
+
 void importedStateRecords() {
     for(int version:{154,159,166,171,177}) {
         for(bool layout:{false,true}) for(bool properties:{false,true}) for(int selected:{-1,0,1,42}) {
@@ -3516,6 +3653,10 @@ int main(int argc, char** argv) {
     try {
         if (argc > 1 && QByteArray(argv[1]) == "--shape-records") {
             for(int i=2;i<argc;++i)nativeShapeRecord(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--after-duplicate-records") {
+            check(argc>2,"Native After Duplicate records required"); for(int i=2;i<argc;++i) nativeAfterDuplicateRecord(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--bitmap-lifecycle-modules") {
+            check(argc>2,"Native Bitmap lifecycle modules required"); for(int i=2;i<argc;++i) nativeBitmapLifecycleModule(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--button-records") {
             check(argc>2,"Native Button records required"); for(int i=2;i<argc;++i) nativeButtonRecord(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--button-bitmap-pickers") {
@@ -3596,7 +3737,7 @@ int main(int argc, char** argv) {
                 Session s; SchematicFile::importFlowStone(s, SchematicFile::read(QString::fromLocal8Bit(argv[i])), {});
                 Session reopened; SchematicFile::loadProject(reopened, SchematicFile::project(s), {});
             }
-        } else { importsAndRoundTrips(); rejectsInvalidFiles(); codePorts(); valuesAndRuby(); linkedCodeSources(); compiledCaches(); valueLayouts(); propertyPanelLayouts(); genericMathRecords(); floatDeZipperRecord(); importedPanels(); legacyPanelControls(); inheritedViews(); propertyWireless(); guiDrawing(); guiSelectorAndRoutedLinks(); penAndFontProperties(); stringFormatsAndBrushes(); customRadialPaths(); importedShapes(); importedDrawingControls(); importedColorConversions(); importedViewCaches(); importedComparisons(); importedRouting(); importedStateRecords(); importedAudioRecords(); importedGeneratorRecords(); importedDropLists(); importedPresets(); importedRouters(); importedMidiCc(); importedBitmaps(); importedFileDialogs(); importedButtons(); heldClose(); }
+        } else { importsAndRoundTrips(); rejectsInvalidFiles(); codePorts(); valuesAndRuby(); linkedCodeSources(); compiledCaches(); valueLayouts(); propertyPanelLayouts(); genericMathRecords(); floatDeZipperRecord(); importedPanels(); legacyPanelControls(); inheritedViews(); propertyWireless(); guiDrawing(); guiSelectorAndRoutedLinks(); penAndFontProperties(); stringFormatsAndBrushes(); customRadialPaths(); importedShapes(); importedDrawingControls(); importedColorConversions(); importedViewCaches(); importedComparisons(); importedRouting(); importedStateRecords(); importedAudioRecords(); importedGeneratorRecords(); importedDropLists(); importedPresets(); importedRouters(); importedMidiCc(); importedBitmaps(); importedFileDialogs(); importedButtons(); importedAfterDuplicate(); heldClose(); }
         std::cout << "FlowStone import tests passed\n"; return 0;
     } catch (const std::exception& e) { std::cerr << e.what() << '\n'; return 1; }
 }

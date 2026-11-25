@@ -175,6 +175,20 @@ BUTTON_RECORDS = {
     'Switch Animation Button': ('Switch', 0x8c0, 65, '49be7706ea2ce945bf37c5948bb601df4d0387abda15601c0c3ce384b7c6d0af'),
 }
 
+AFTER_DUPLICATE_RECORDS = {
+    'Multi LFO Speed Button': 0x3208,
+    'Multi LFO Depth Button': 0x59db,
+    'Detuner Button': 0x444d,
+    'Switch Animation Button': 0x901,
+}
+
+BITMAP_LIFECYCLE_MODULES = {
+    'Multi LFO Speed Bitmap': (0x212c, 0x326e),
+    'Multi LFO Depth Bitmap': (0x48ff, 0x5a41),
+    'Detuner Bitmap': (0x3342, 0x44b3),
+}
+
+
 def gui_record_document(record, name, version, *, node_count=1, links=()):
     header = struct.pack('<HIIH', version, 1, 1, 0) + bytes(3) + b'\1' + bytes(12)
     if version >= 171: header += bytes(4)
@@ -492,6 +506,32 @@ def main():
         pickers.append(str(path))
     subprocess.run([str(args.probe.resolve()), '--button-records', *buttons], check=True)
     subprocess.run([str(args.probe.resolve()), '--button-bitmap-pickers', *pickers], check=True)
+
+    paths = []
+    for key, offset in AFTER_DUPLICATE_RECORDS.items():
+        source, _, _, digest = BUTTON_RECORDS[key]
+        data = (args.flowstone_root / 'Modules' / (source + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled After Duplicate module hash changed: ' + source)
+        record = data[offset:offset+7]
+        if len(record) != 7 or struct.unpack_from('<H', record)[0] != 551 or record[6] != 0:
+            raise ValueError('Unexpected native After Duplicate record: ' + key)
+        name = key.replace('Button', 'After Duplicate')
+        path = args.output / (name + '.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', gui_record_document(record, name, struct.unpack_from('<H', data)[0]))
+        paths.append(str(path))
+    subprocess.run([str(args.probe.resolve()), '--after-duplicate-records', *paths], check=True)
+
+    paths = []
+    for key, (start, end) in BITMAP_LIFECYCLE_MODULES.items():
+        source, _, _, digest = BITMAP_RECORDS[key]
+        data = (args.flowstone_root / 'Modules' / (source + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled Bitmap lifecycle module hash changed: ' + source)
+        path = args.output / (key + ' complete module.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', wrap(data[:end], 'Bitmap', struct.unpack_from('<H', data)[0], start))
+        paths.append(str(path))
+    subprocess.run([str(args.probe.resolve()), '--bitmap-lifecycle-modules', *paths], check=True)
 
     records, modules = [], []
     for source, (start, end, offset, digest) in MIDI_CC_MODULES.items():
