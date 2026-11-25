@@ -17,6 +17,7 @@ constexpr std::pair<std::string_view, Type> rubyTypes[]{
     {"String", Type::String}, {"IntArray", Type::IntArray},
     {"FloatArray", Type::FloatArray}, {"StringArray", Type::StringArray}, {"RubyValue", Type::RubyValue},
     {"MIDI", Type::MIDI}, {"View", Type::View}, {"Color", Type::Color}, {"Bitmap", Type::Bitmap},
+    {"Font", Type::Font}, {"StringFormat", Type::StringFormat},
 };
 constexpr std::string_view whitespace = " \t\r";
 

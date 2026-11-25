@@ -48,6 +48,19 @@ QJsonValue encode(const std::optional<green::Value>& value)
             return QJsonObject{{"midi", QString::fromLatin1(bytes.toBase64())}};
         } else if constexpr (std::is_same_v<Item, yellow::Color>) {
             return QJsonObject{{"color", static_cast<qint64>(item.argb)}};
+        } else if constexpr (std::is_same_v<Item, yellow::Font>) {
+            const int style = item.style.bold | (item.style.italic << 1) | (item.style.underline << 2) | (item.style.strikeout << 3);
+            QJsonArray fallbacks;
+            for (const auto& face : item.fallbackFaces) fallbacks.append(QString::fromStdString(face));
+            return QJsonObject{{"font", QJsonArray{QString::fromStdString(item.face), item.size, style}},
+                               {"alternateFace", QString::fromStdString(item.alternateFace)}, {"fallbackFaces", fallbacks}};
+        } else if constexpr (std::is_same_v<Item, yellow::StringFormat>) {
+            const bool reverse = item.rightToLeft && !item.verticalText;
+            const auto horizontal = item.horizontal == yellow::HorizontalAlignment::Center ? "center" :
+                (item.horizontal == yellow::HorizontalAlignment::Right) != reverse ? "far" : "near";
+            const auto vertical = item.vertical == yellow::VerticalAlignment::Center ? "center" :
+                item.vertical == yellow::VerticalAlignment::Bottom ? "far" : "near";
+            return QJsonObject{{"stringFormat", QJsonArray{horizontal, vertical, int(yellow::stringFormatFlags(item))}}};
         } else if constexpr (std::is_arithmetic_v<Item>) {
             return item;
         } else if constexpr (std::is_same_v<Item, green::IntArray> ||
@@ -71,6 +84,8 @@ QJsonValue encode(const std::optional<green::Value>& value)
 using green::Type;
 
 yellow::Color decodeColor(QJsonValue value);
+yellow::Font decodeFontValue(QJsonValue value);
+yellow::StringFormat decodeStringFormat(QJsonValue value);
 
 green::Value decodeScalar(QJsonValue value, Type type)
 {
@@ -89,6 +104,8 @@ green::Value decodeScalar(QJsonValue value, Type type)
         break;
     case Type::Color:
         return decodeColor(value.toObject()["color"]);
+    case Type::Font: return decodeFontValue(value);
+    case Type::StringFormat: return decodeStringFormat(value.toObject()["stringFormat"]);
     case Type::String:
         if (value.isString()) return value.toString().toStdString();
         break;
@@ -153,16 +170,51 @@ yellow::Area decodeDrawingArea(QJsonValue value)
 
 yellow::Font decodeFont(const QJsonArray& fields)
 {
+    if (fields.size() != 3 || !fields.at(0).isString()) throw std::invalid_argument("Invalid Ruby font");
     yellow::Font font{.face = fields.at(0).toString().toStdString(), .size = drawingCoordinate(fields.at(1))};
     if (font.size <= 0) throw std::invalid_argument("Invalid Ruby font size");
     const auto style = fields.at(2);
     if (style.isString()) {
         font.style = yellow::parseFontStyle(style.toString().toStdString());
     } else {
-        const auto mask = style.toInt();
+        const auto mask = style.toInteger(-1);
+        if (mask < 0 || mask > 15) throw std::invalid_argument("Invalid Ruby font style");
         font.style = {bool(mask & 1), bool(mask & 2), bool(mask & 4), bool(mask & 8)};
     }
     return font;
+}
+
+yellow::Font decodeFontValue(QJsonValue value)
+{
+    const auto object = value.toObject();
+    auto font = decodeFont(object["font"].toArray());
+    if (!object["alternateFace"].isString() || !object["fallbackFaces"].isArray()) throw std::invalid_argument("Invalid Ruby font fallbacks");
+    font.alternateFace = object["alternateFace"].toString().toStdString();
+    const auto faces = object["fallbackFaces"].toArray();
+    if (faces.size() > 4096) throw std::invalid_argument("Too many Ruby font fallbacks");
+    for (const auto& face : faces) {
+        if (!face.isString() || face.toString().isEmpty()) throw std::invalid_argument("Invalid Ruby font fallback");
+        font.fallbackFaces.push_back(face.toString().toStdString());
+    }
+    return font;
+}
+
+yellow::StringFormat decodeStringFormat(QJsonValue value)
+{
+    const auto fields = value.toArray();
+    if (fields.size() != 3) throw std::invalid_argument("Invalid Ruby StringFormat");
+    const auto horizontal = fields.at(0).toString(), vertical = fields.at(1).toString();
+    const auto validAlignment = [](const QString& name) { return name == "near" || name == "center" || name == "far"; };
+    const auto flags = fields.at(2).toInteger(-1);
+    if (!validAlignment(horizontal) || !validAlignment(vertical) || flags < 0 || (quint64(flags) & ~quint64(yellow::stringFormatFlagMask)))
+        throw std::invalid_argument("Invalid Ruby StringFormat alignment or flags");
+    auto format = yellow::stringFormatFromFlags(flags);
+    const bool reverse = format.rightToLeft && !format.verticalText;
+    format.horizontal = horizontal == "center" ? yellow::HorizontalAlignment::Center :
+        (horizontal == "far") != reverse ? yellow::HorizontalAlignment::Right : yellow::HorizontalAlignment::Left;
+    format.vertical = vertical == "center" ? yellow::VerticalAlignment::Center :
+        vertical == "far" ? yellow::VerticalAlignment::Bottom : yellow::VerticalAlignment::Top;
+    return format;
 }
 
 RubyEditOptions decodeEditOptions(QJsonValue value)
@@ -203,7 +255,7 @@ yellow::Color decodeColor(QJsonValue value)
 
 yellow::TextCommand decodeText(const QJsonArray& fields)
 {
-    if (fields.size() != 4 || fields.at(2).toArray().size() != 3) {
+    if ((fields.size() != 4 && fields.size() != 5) || fields.at(2).toArray().size() != 3) {
         throw std::invalid_argument("Invalid Ruby text layout");
     }
     const auto location = fields.at(0).toArray();
@@ -213,22 +265,7 @@ yellow::TextCommand decodeText(const QJsonArray& fields)
 
     yellow::StringFormat format;
     if (const auto description = fields.at(3).toArray(); description.size() == 3) {
-        const auto horizontal = description.at(0).toString();
-        const auto vertical = description.at(1).toString();
-        const auto flags = description.at(2).toInt();
-        // StringFormat uses GDI+ flag values.
-        format.rightToLeft = (flags & 1) != 0;
-        format.verticalText = (flags & 2) != 0;
-        const bool reverse = format.rightToLeft && !format.verticalText;
-        using enum yellow::HorizontalAlignment;
-        format.horizontal = horizontal == "center" ? Center : (horizontal == "far") != reverse ? Right : Left;
-        using V = yellow::VerticalAlignment;
-        format.vertical = vertical == "center" ? V::Center : vertical == "far" ? V::Bottom : V::Top;
-        format.showControls = (flags & 32) != 0;
-        format.includeTrailingSpaces = (flags & 2048) != 0;
-        format.wrap = (flags & 4096) == 0;
-        format.wholeLinesOnly = (flags & 8192) != 0;
-        format.clip = (flags & 16384) == 0;
+        format = decodeStringFormat(description);
     }
     if (point) {
         format.wrap = false;
@@ -236,8 +273,11 @@ yellow::TextCommand decodeText(const QJsonArray& fields)
         format.clip = false;
     }
 
+    const auto hint = fields.size() == 5 ? fields.at(4).toInteger(-1) : 0;
+    if (hint < 0 || hint > 5) throw std::invalid_argument("Invalid Ruby text rendering hint");
     return {.area = area, .text = fields.at(1).toString().toStdString(),
-            .font = decodeFont(fields.at(2).toArray()), .format = format, .pointOrigin = point};
+            .font = decodeFont(fields.at(2).toArray()), .format = format, .pointOrigin = point,
+            .renderingHint = yellow::TextRenderingHint(hint)};
 }
 
 RubyDrawing decodeDrawing(QJsonValue value, yellow::Area view)
@@ -443,7 +483,7 @@ private:
                 throw std::runtime_error("Text measurement requires a Qt GUI application");
             }
             const auto text = decodeText(request["text"].toArray());
-            const auto measured = measureTextLayout(text.text, text.area, text.font, text.format, text.pointOrigin);
+            const auto measured = measureTextLayout(text.text, text.area, text.font, text.format, text.pointOrigin, text.renderingHint);
             const auto& area = measured.bounds;
             reply.insert("result", QJsonObject{{"bounds", QJsonArray{area.x, area.y, area.width, area.height}},
                 {"width", area.width}, {"height", area.height}, {"chars", measured.chars}, {"lines", measured.lines}});

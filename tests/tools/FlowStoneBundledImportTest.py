@@ -35,6 +35,8 @@ MODULES = {
 
 # Complete bundled modules unblocked by native Ruby data-connector numbering.
 RUBY_DATA_MODULES = {
+    'Edit Box': (177, 0x77, '601e3b09ee5dda7e748e065fea539e9e5e3a83d015e44b8bcf38fa3c693ed085'),
+    'Label': (166, 0x67, '6049d5d91e8d84e6d678d5eee00a7d8e8646b96abd1f7f29cf7a1ca24c0c1e3d'),
     '0-1 Timed Counter': (159, 0x7e, '1352145ca7798c5791b6363996bd2e60a773dabf30735cecb1d0d1a16ecc6f36'),
     'Bitmap-Strip LED-Indicator': (166, 0xa3, '8f7b8480cf464a85ef27caede7d12767cdef1282e9816810cad7cb15aed60f8f'),
     'Bitmap-Strip State': (166, 0x96, 'bee9bb23b2bb6d6b0da4096a159e922f7afaf631ead7905a661cf47cbd62769d'),
@@ -339,6 +341,9 @@ def main():
                              env={**os.environ, 'QT_QPA_PLATFORM': 'offscreen'})
         if run.returncode == 77: print('Ruby unavailable; native Ruby import/save/reopen checks still passed')
         else: run.check_returncode()
+        run = subprocess.run([str(args.ruby_probe.resolve()), '--imported-text-resources', ruby_modules['Label'], ruby_modules['Edit Box']],
+                             env={**os.environ, 'QT_QPA_PLATFORM': 'offscreen'})
+        if run.returncode != 77: run.check_returncode()
     paths = []
     for name, (module, offset, size, digest) in GUI_RECORDS.items():
         data = (args.flowstone_root / 'Modules' / (module + '.hom')).read_bytes()

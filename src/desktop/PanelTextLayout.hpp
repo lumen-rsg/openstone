@@ -20,11 +20,13 @@ struct TextMeasurement {
 };
 
 QFont panelTypeface(const yellow::Font& description);
-QVariantMap panelTextProperties(std::string_view text, const yellow::Font& font, const yellow::StringFormat& format);
+QVariantMap panelTextProperties(std::string_view text, const yellow::Font& font, const yellow::StringFormat& format,
+                               yellow::TextRenderingHint hint = yellow::TextRenderingHint::SystemDefault);
 int layoutPanelText(QTextLayout& layout, const QVariantMap& drawing, QSizeF extent);
 QTransform textTransform(bool vertical, qreal layoutWidth, qreal scale);
 TextMeasurement measureTextLayout(std::string_view text, yellow::Area area, const yellow::Font& font,
-                                  const yellow::StringFormat& format, bool pointOrigin);
+                                  const yellow::StringFormat& format, bool pointOrigin,
+                                  yellow::TextRenderingHint hint = yellow::TextRenderingHint::SystemDefault);
 yellow::Area measureText(std::string_view text, yellow::Area area, const yellow::Font& font,
                          const yellow::StringFormat& format);
 

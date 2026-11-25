@@ -1,5 +1,6 @@
 #include "RubyProcess.hpp"
 #include "SchematicFile.hpp"
+#include "PanelTextLayout.hpp"
 
 #include <QGuiApplication>
 #include <QDir>
@@ -2210,6 +2211,136 @@ end
           "FlowStone Midi accepts zero-based channel endpoints, rejects invalid channels, and preserves channel/program/SysEx wire formats");
 }
 
+void rubyTextResourcesRoundTrip(const QString& path)
+{
+    using desktop::SchematicFile;
+    const auto create=[] { return Session({}, {}, {}, {}, {.ruby=desktop::makeRubyBackend()}); };
+    auto session=create(); const auto module=session.graph().addNode(Module,0,0); auto& g=*session.graph().module(module);
+    const auto view=g.addNode(ModuleGui,0,0), font=g.addNode(Font,0,0), format=g.addNode(StringFormat,0,0), script=g.addNode(Ruby,0,0);
+    const auto face=g.addNode(String,0,0,std::string("Arial")), size=g.addNode(Float,0,0,1.75f);
+    const auto style=g.addNode(String,0,0,std::string("bold italic underline strikeout")), alternate=g.addNode(String,0,0,std::string("Helvetica"));
+    const auto flags=g.addNode(String,0,0,std::string("0")), horizontal=g.addNode(String,0,0,std::string("left")), vertical=g.addNode(String,0,0,std::string("top"));
+    g.setRubyDraft(script,R"ruby(# input View canvas
+# input Font font
+# input StringFormat format
+# output Font font
+# output StringFormat format
+def init
+  output 0,@font
+  output 1,@format
+end
+def event(i,v)
+  init
+  redraw
+end
+def draw(v)
+  v.drawString "Resources",@font,@format,[0,0,8,4],Brush.new(Color.new(255,36,104,171))
+end
+)ruby");
+    g.applyRubyPorts(script);
+    g.connect({face,font,0}); g.connect({size,font,1}); g.connect({style,font,2}); g.connect({alternate,font,3});
+    g.connect({flags,format,0}); g.connect({horizontal,format,1}); g.connect({vertical,format,2});
+    g.connect({view,script,0}); g.connect({font,script,1}); g.connect({format,script,2});
+    const auto verify=[&](Schematic& root) {
+        auto& child=*root.module(module); child.runRuby(script);
+        for(const auto& mask : {std::string("0"),std::string("1"),std::string("31783")})
+            for(const auto& h : {std::string("left"),std::string("center"),std::string("right")})
+                for(const auto& v : {std::string("top"),std::string("center"),std::string("bottom")}) {
+                    child.setValue(flags,mask); child.setValue(horizontal,h); child.setValue(vertical,v);
+                    if(child.nodes()[script-1].rubyCode->error) throw std::runtime_error(child.nodes()[script-1].rubyCode->status);
+                    check(child.readValue(script,0)==child.readValue(font) && child.readValue(script,1)==child.readValue(format),
+                          "Ruby Font and StringFormat connectors preserve all style flags, alternate face, alignment and RTL direction");
+                }
+        const auto flagged=root.renderPanel(child.frontPanel()->view);
+        check(flagged.size()==1 && std::get<yellow::TextCommand>(flagged[0].command).format==std::get<yellow::StringFormat>(child.readValue(format)),
+              "Ruby drawing preserves every StringFormat flag, including no-fit-black-box and no-font-fallback");
+        child.setValue(flags,std::string("0")); child.setValue(horizontal,std::string("center")); child.setValue(size,2.5f);
+        const auto commands=root.renderPanel(child.frontPanel()->view);
+        check(commands.size()==1 && std::holds_alternative<yellow::TextCommand>(commands[0].command),"Resource connector values work in Ruby drawString");
+        const auto& command=std::get<yellow::TextCommand>(commands[0].command);
+        check(command.font.face=="Arial" && command.font.size==2.5f && command.font.style==yellow::FontStyle{true,true,true,true} &&
+              command.format.horizontal==yellow::HorizontalAlignment::Center,"Drawing retains the connected Font style and StringFormat alignment");
+    };
+    verify(session.graph()); const auto saved=SchematicFile::project(session); SchematicFile::write(path,saved); auto reopened=create();
+    SchematicFile::loadProject(reopened,SchematicFile::read(path),{});
+    check(SchematicFile::project(reopened)==saved,"Font and StringFormat ports, values and links survive disk save/reopen");
+    verify(reopened.graph());
+}
+
+void importedRubyTextResources(const QString& path)
+{
+    using desktop::SchematicFile;
+    const auto create=[] { return Session({}, {}, {}, {}, {.ruby=desktop::makeRubyBackend()}); };
+    auto session=create(); SchematicFile::importFlowStone(session,SchematicFile::read(path),{});
+    for(int i=0;i<std::ssize(session.graph().nodes()[0].moduleInputs);++i) {
+        if(session.graph().inputType(1,i)!=green::Type::String) continue;
+        const auto text=session.graph().addNode(String,0,0,std::string("Native text"));
+        session.graph().connect({text,1,i},LinkNotification::Silent); break;
+    }
+    const auto verify=[](Schematic& root) {
+        int scripts=0,fonts=0;
+        const auto start=[&](auto&& self,Schematic& g)->void {
+            for(const auto& node : g.nodes()) {
+                if(node.rubyCode) {
+                    for(const auto& port : node.rubyCode->ports.inputs) fonts+=port.type==green::Type::Font;
+                    ++scripts; g.runRuby(node.id);
+                    if(node.rubyCode->error) throw std::runtime_error(node.rubyCode->status);
+                }
+                if(auto* child=g.module(node.id)) self(self,*child);
+            }
+        };
+        start(start,root); auto& module=*root.module(1);
+        const auto drawing=root.renderPanel(module.frontPanel()->view);
+        const auto checkDraw=[&](auto&& self,const Schematic& g)->void {
+            for(const auto& node : g.nodes()) {
+                if(node.rubyCode && (node.rubyCode->error || !node.rubyCode->drawError.empty()))
+                    throw std::runtime_error(node.rubyCode->status+" "+node.rubyCode->drawError);
+                if(const auto* child=g.module(node.id)) self(self,*child);
+            }
+        };
+        checkDraw(checkDraw,root);
+        check(scripts>0 && fonts>0 && std::ranges::any_of(drawing,[](const auto& item){
+            const auto* text=std::get_if<yellow::TextCommand>(&item.command); return text && !text->text.empty();
+        }),"Complete unchanged native GUI module runs Ruby with Font inputs and draws text");
+    };
+    verify(session.graph()); const auto saved=SchematicFile::project(session); QTemporaryDir dir; const auto file=dir.filePath("native-text-resource.ostone");
+    SchematicFile::write(file,saved); auto reopened=create(); SchematicFile::loadProject(reopened,SchematicFile::read(file),{});
+    check(SchematicFile::project(reopened)==saved,"Complete native GUI module retains code, Font resources, saved Ruby state and links on disk save/reopen");
+    verify(reopened.graph());
+    std::cout<<path.toStdString()<<": unchanged Ruby text resources, drawing and disk save/reopen passed\n";
+}
+
+void rubyTextHintsAndColorDrawing()
+{
+    Schematic root({}, {}, {}, {}, {.ruby=desktop::makeRubyBackend()});
+    auto& g=*root.module(root.addNode(Module,0,0)); const auto view=g.addNode(ModuleGui,0,0), hint=g.addNode(Int,0,0), script=g.addNode(Ruby,0,0);
+    g.setRubyDraft(script,R"ruby(# input View canvas
+# input Int hint
+def event(i,v)
+  redraw
+end
+def draw(v)
+  v.setTextRenderingHint @hint
+  v.drawRectangle Color.new(255,10,20,30),v.rect
+  v.drawString "Hint",Font.new("Arial",1.5),nil,[0,0,8,2],Color.new(255,40,50,60)
+end
+)ruby");
+    g.applyRubyPorts(script); g.connect({view,script,0}); g.connect({hint,script,1}); g.runRuby(script);
+    for(int i=0;i<6;++i) {
+        g.setValue(hint,std::int32_t(i)); const auto commands=root.renderPanel(g.frontPanel()->view);
+        check(commands.size()==2,"Native-style Color drawing and View.rect produce a background and text");
+        const auto& background=std::get<yellow::DrawCommand>(commands[0].command);
+        const auto& text=std::get<yellow::TextCommand>(commands[1].command);
+        check(background.area==g.frontPanel()->view.bounds && std::get<yellow::SolidBrush>(background.tool).color==yellow::Color{0xff0a141e} &&
+              text.color==yellow::Color{0xff28323c} && int(text.renderingHint)==i,"Color shorthand and all six text rendering hints retain their values");
+        const auto properties=desktop::panelTextProperties(text.text,text.font,text.format,text.renderingHint);
+        const auto font=properties.value("font").value<QFont>();
+        if(i) check(font.hintingPreference()==(i==1 || i==3 || i==5 ? QFont::PreferFullHinting : QFont::PreferNoHinting) &&
+                    (font.styleStrategy() & (i==1 || i==2 ? QFont::NoAntialias : QFont::PreferAntialias)),
+                    "Ruby text rendering hints reach Qt's grid-fitting and antialiasing settings");
+    }
+}
+
 }
 
 int main(int argc, char** argv)
@@ -2225,6 +2356,11 @@ int main(int argc, char** argv)
             importedRubyDataPorts(QString::fromLocal8Bit(argv[2]),QString::fromLocal8Bit(argv[3]));
             return 0;
         }
+        if(argc>1 && QByteArray(argv[1])=="--imported-text-resources") {
+            check(argc>2,"Native Ruby GUI modules required");
+            for(int i=2;i<argc;++i) importedRubyTextResources(QString::fromLocal8Bit(argv[i]));
+            return 0;
+        }
         QTemporaryDir files;
         check(files.isValid(), "Create a temporary workspace");
         rubyLinkedSourceUpdatesAfterGreenDispatch(files.filePath(QStringLiteral("ruby-source.ostone")));
@@ -2236,6 +2372,8 @@ int main(int argc, char** argv)
         rubyValuePassesLiveArraysHashesAndCustomObjects();
         rubyMidiRoutesChannelMessagesAndSysEx(files.filePath(QStringLiteral("ruby-midi.ostone")));
         rubyFlowStoneMidiConstructor();
+        rubyTextResourcesRoundTrip(files.filePath(QStringLiteral("ruby-text-resources.ostone")));
+        rubyTextHintsAndColorDrawing();
         rubySchedulesInputsAndOutputsAgainstSchematicClock();
         rubyQueueOrdersAcrossNodesAndKeepsMethodArguments();
         rubyClearEventsCancelsOnlyTheCallingNode();

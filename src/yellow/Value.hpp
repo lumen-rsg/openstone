@@ -292,6 +292,8 @@ inline constexpr std::uint32_t stringFormatFlagMask = 0x7c27;
 [[nodiscard]] StringFormat stringFormatFromFlags(std::uint32_t flags);
 [[nodiscard]] std::uint32_t stringFormatFlags(const StringFormat& format) noexcept;
 
+enum class TextRenderingHint { SystemDefault, SingleBitPerPixelGridFit, SingleBitPerPixel, AntiAliasGridFit, AntiAlias, ClearTypeGridFit };
+
 struct TextCommand {
     Area area;
     Color color;
@@ -299,6 +301,7 @@ struct TextCommand {
     Font font;
     StringFormat format;
     bool pointOrigin = false;
+    TextRenderingHint renderingHint = TextRenderingHint::SystemDefault;
 };
 
 struct EditControlCommand {

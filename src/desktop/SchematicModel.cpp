@@ -851,7 +851,7 @@ QVariantMap drawingDescription(const yellow::DrawCommand& drawing)
 
 QVariantMap drawingDescription(const yellow::TextCommand& drawing)
 {
-    auto properties = desktop::panelTextProperties(drawing.text, drawing.font, drawing.format);
+    auto properties = desktop::panelTextProperties(drawing.text, drawing.font, drawing.format, drawing.renderingHint);
     properties.insert("kind", "text");
     properties.insert("pointOrigin", drawing.pointOrigin);
     properties.insert("area", panelRect(drawing.area).normalized());

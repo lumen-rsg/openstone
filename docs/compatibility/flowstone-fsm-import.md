@@ -452,6 +452,13 @@ native Multi Osc oscillator bank, for example, contains a Sine/Multiply phase
 feedback loop that is rejected after its generator records decode successfully.
 The importer does not remove or rewrite that loop to force an import.
 
+Envelope Control (481) also needs runtime work before it can be mapped fully:
+native bundled Gate modules use its second, Boolean Fast Release output.
+OpenStone's current Envelope Control exposes only Stage. ADSR, AHDSR and R
+wire the missing output, while AHD and D additionally reach DSP source that
+writes to input variables. The importer continues to reject component 481;
+it does not discard the extra output or substitute a constant.
+
 ## GUI and property conversion
 
 GUI nodes preserve serialized frame dimensions and positions in grid units.
@@ -1384,6 +1391,30 @@ across versions 154, 159, 166, 171, 174 and 177. The converted graph's String
 array storage, separator and links survive disk save/reopen. The complete-module
 scan remains **40/124** and advances the affected Font/Fonts submodules to
 Special Characters (249).
+
+Ruby now accepts Font and StringFormat inputs and outputs. The backend transfers
+Font face, size, all four style bits, alternate face and fallback names, plus
+StringFormat alignment and all supported GDI+ flags. Logical near/far alignment
+is translated to/from the Green resource's physical alignment, accounting for
+right-to-left and vertical text. Scheduled resource outputs snapshot the Ruby
+wrapper. Drawing consumes the same flags, including no-fit-black-box and
+no-font-fallback. Existing source/data connector numbering is unchanged.
+
+This raises the complete-module scan to **42/124**: Label (166, body `0x67`) and
+Edit Box (177, body `0x77`) now import and reopen. Both are hash-pinned complete
+module fixtures. Their unchanged Ruby code runs, consumes Font resources and
+draws text before and after disk save/reopen. Authored runtime tests pass Font
+and StringFormat resources through both directions, compare all supported flags
+and every horizontal/vertical alignment combination, draw with the resources,
+and reopen the resulting project. Vendor sources remain external.
+
+The unchanged GUI kernels also exercise Font.size, View.rect, Color arguments
+as solid drawing fills and text brushes, and setTextRenderingHint. All six GDI+
+text-hint names/numbers are transported with the text command; Qt receives the
+requested grid-fitting and antialiasing preference, and native glyph rendering
+is used for single-bit/ClearType modes. Text measurement uses the same settings.
+The platform font backend determines the final glyph pixels; these headless
+checks do not establish Windows GDI+ pixel parity.
 
 Independent GUI fixtures exercise all four panel IDs across versions 154, 155,
 170 and 177; actual text drawing commands; anchor metadata; live legacy size and

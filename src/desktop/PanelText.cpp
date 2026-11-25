@@ -47,7 +47,10 @@ QSGNode* PanelText::updatePaintNode(QSGNode* old, UpdatePaintNodeData*)
 
     auto* node = old ? static_cast<QSGTextNode*>(old) : window()->createTextNode();
     node->clear();
-    node->setRenderType(QSGTextNode::CurveRendering);
+    const auto hint = openstone::yellow::TextRenderingHint(drawing_.value("textRenderingHint").toInt());
+    using H = openstone::yellow::TextRenderingHint;
+    const bool native = hint == H::SingleBitPerPixelGridFit || hint == H::SingleBitPerPixel || hint == H::ClearTypeGridFit;
+    node->setRenderType(native ? QSGTextNode::NativeRendering : QSGTextNode::CurveRendering);
     node->setColor(drawing_.value("color").value<QColor>());
     node->setMatrix(QMatrix4x4(textTransform(drawing_.value("vertical").toBool(), extent.width(),
                                              pixelsPerUnit_ / layoutPixelsPerUnit)));

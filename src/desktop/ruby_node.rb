@@ -138,6 +138,7 @@ class Bitmap
 end
 
 class Font
+  attr_reader :size
   def initialize(face, size, style = "normal")
     @face = String(face)
     @size = Float(size)
@@ -239,6 +240,17 @@ class View
     @measure_text = measure_text
   end
 
+  def rect
+    [0, 0, @width, @height]
+  end
+
+  def setTextRenderingHint(hint)
+    hints = %w[systemDefault singleBitPerPixelGridFit singleBitPerPixel antiAliasGridFit antiAlias clearTypeGridFit]
+    value = hint.is_a?(Integer) ? hint : hints.map(&:downcase).index(hint.to_s.downcase)
+    raise ArgumentError, "Unknown text rendering hint" unless value && (0..5).include?(value)
+    @text_rendering_hint = value
+  end
+
   def drawRectangle(instrument, rect)
     openstone_shape("rectangle", instrument, rect)
   end
@@ -279,6 +291,7 @@ class View
   end
 
   def drawString(text, font, format, location, brush)
+    brush = Brush.new(brush) if brush.is_a?(Color)
     raise TypeError, "Expected a Brush" unless brush.is_a?(Brush)
     description = openstone_text_description(text, font, format, location)
     bounds, label = description
@@ -300,7 +313,7 @@ class View
     raise TypeError, "Expected a StringFormat or nil" unless format.nil? || format.is_a?(StringFormat)
     point = location.is_a?(Array) && location.length == 2
     bounds = openstone_coordinates(location, point ? 2 : 4, "a point or rectangle")
-    [bounds, String(text).dup, font.openstone_description, format&.openstone_description]
+    [bounds, String(text).dup, font.openstone_description, format&.openstone_description, @text_rendering_hint || 0]
   end
 
   def openstone_shape(kind, instrument, rect, *options)
@@ -326,6 +339,7 @@ class View
   end
 
   def openstone_drawing(kind, geometry, instrument, *options)
+    instrument = Brush.new(instrument) if instrument.is_a?(Color)
     unless instrument.is_a?(Pen) || instrument.is_a?(Brush)
       raise TypeError, "Expected a Pen or Brush"
     end
@@ -721,6 +735,7 @@ class RubyEdit
 
   def openstone_snapshot(value)
     case value
+    when Font, StringFormat then value.dup
     when Array then value.map { |item| item.is_a?(String) ? item.dup : item }
     when String then value.dup
     else value
@@ -771,6 +786,18 @@ resolve = lambda do |value|
     bitmap = Bitmap.new(value.fetch("bitmap"), value.fetch("width"), value.fetch("height"))
     bitmaps[bitmap] = bitmap
     bitmap
+  elsif value.key?("font")
+    font = Font.new(*value.fetch("font"))
+    font.instance_variable_set(:@openstone_alternate_face, value.fetch("alternateFace"))
+    font.instance_variable_set(:@openstone_fallback_faces, value.fetch("fallbackFaces"))
+    font
+  elsif value.key?("stringFormat")
+    horizontal, vertical, flags = value.fetch("stringFormat")
+    format = StringFormat.new
+    format.setAlignment horizontal
+    format.setLineAlignment vertical
+    format.setFlags flags
+    format
   else
     objects.fetch(value.fetch("rubyObject"))
   end
@@ -839,6 +866,12 @@ STDIN.each_line do |line|
         value = { "bitmap" => value.openstone_reference }
       elsif value.is_a?(Color)
         value = { "color" => value.argb }
+      elsif value.is_a?(Font)
+        value = { "font" => value.openstone_description,
+                  "alternateFace" => value.instance_variable_get(:@openstone_alternate_face) || "",
+                  "fallbackFaces" => value.instance_variable_get(:@openstone_fallback_faces) || [] }
+      elsif value.is_a?(StringFormat)
+        value = { "stringFormat" => value.openstone_description }
       end
       [direction, target, value, stamp]
     end

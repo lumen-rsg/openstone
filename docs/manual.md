@@ -271,7 +271,9 @@ Find **Ruby** in the library. The starter node doubles a Float from its input. C
 
 Drag the grip below either connector column down to add ports or up to remove ports. Click a name to edit it. Right-click a connector to change its type, insert or remove a port, or move it up or down. Drag the bottom-right grip to resize the Ruby box. Visual port edits and box size are saved with the schematic and are undoable. A connector layout edit stops the script. Click **Run Ruby** to start it with the new layout.
 
-You can also declare ports with comments above the source. **Apply Ports** configures those connectors from the header. **Use Header Ports** switches a visually configured node back to the comment layout. Supported types include Trigger, Float, Int, Boolean, String, Int Array, Float Array, String Array, MIDI, Ruby Value, Color, and Bitmap. View is available as an input.
+You can also declare ports with comments above the source. **Apply Ports** configures those connectors from the header. **Use Header Ports** switches a visually configured node back to the comment layout. Supported types include Trigger, Float, Int, Boolean, String, Int Array, Float Array, String Array, MIDI, Ruby Value, Color, Bitmap, Font, and StringFormat. View is available as an input.
+
+Connect a Font or String Format primitive to Ruby to use the resource directly in `drawString`. Font and StringFormat outputs can also pass resources to other nodes. Font styles and fallback names, String Format alignment and supported flags survive the connector transfer and project save/reopen.
 
 ```ruby
 # input Float value

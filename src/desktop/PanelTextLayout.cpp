@@ -111,7 +111,7 @@ QFont panelTypeface(const yellow::Font& description)
 }
 
 QVariantMap panelTextProperties(std::string_view text, const yellow::Font& description,
-                                const yellow::StringFormat& format)
+                                const yellow::StringFormat& format, yellow::TextRenderingHint hint)
 {
     auto font = panelTypeface(description);
     font.setBold(description.style.bold);
@@ -119,13 +119,20 @@ QVariantMap panelTextProperties(std::string_view text, const yellow::Font& descr
     font.setUnderline(description.style.underline);
     font.setStrikeOut(description.style.strikeout);
     if (format.noFontFallback) font.setStyleStrategy(QFont::StyleStrategy(font.styleStrategy() | QFont::NoFontMerging));
+    using H = yellow::TextRenderingHint;
+    if (hint != H::SystemDefault) {
+        const bool grid = hint == H::SingleBitPerPixelGridFit || hint == H::AntiAliasGridFit || hint == H::ClearTypeGridFit;
+        const bool singleBit = hint == H::SingleBitPerPixelGridFit || hint == H::SingleBitPerPixel;
+        font.setHintingPreference(grid ? QFont::PreferFullHinting : QFont::PreferNoHinting);
+        font.setStyleStrategy(QFont::StyleStrategy(font.styleStrategy() | (singleBit ? QFont::NoAntialias : QFont::PreferAntialias)));
+    }
     using yellow::HorizontalAlignment;
     using yellow::VerticalAlignment;
     const auto horizontal = format.horizontal == HorizontalAlignment::Center ? Qt::AlignHCenter
                           : format.horizontal == HorizontalAlignment::Right ? Qt::AlignRight : Qt::AlignLeft;
     const auto vertical = format.vertical == VerticalAlignment::Center ? Qt::AlignVCenter
                         : format.vertical == VerticalAlignment::Bottom ? Qt::AlignBottom : Qt::AlignTop;
-    return {{"text", QString::fromUtf8(text.data(), text.size())}, {"font", font}, {"size", description.size},
+    return {{"text", QString::fromUtf8(text.data(), text.size())}, {"font", font}, {"size", description.size}, {"textRenderingHint", int(hint)},
             {"alignment", (horizontal | vertical).toInt()}, {"wrap", format.wrap},
             {"rtl", format.rightToLeft}, {"vertical", format.verticalText}, {"clipText", format.clip},
             {"showControls", format.showControls}, {"includeTrailingSpaces", format.includeTrailingSpaces},
@@ -169,7 +176,7 @@ int fittedCharacters(const QTextLayout& layout, QStringView text, const QTextLin
 }
 
 TextMeasurement measureTextLayout(std::string_view text, yellow::Area area, const yellow::Font& font,
-                                  const yellow::StringFormat& format, bool pointOrigin)
+                                  const yellow::StringFormat& format, bool pointOrigin, yellow::TextRenderingHint hint)
 {
     TextMeasurement result;
     const auto bounds = QRectF(area.x, area.y, area.width, area.height).normalized();
@@ -178,7 +185,7 @@ TextMeasurement measureTextLayout(std::string_view text, yellow::Area area, cons
     // Point layout uses zero extent for alignment, as in the renderer.
     const auto extent = pointOrigin ? QSizeF(0, 0) : bounds.size() * layoutPixelsPerUnit;
     QTextLayout layout;
-    const auto lineCount = layoutPanelText(layout, panelTextProperties(text, font, format), extent);
+    const auto lineCount = layoutPanelText(layout, panelTextProperties(text, font, format, hint), extent);
     const auto content = layout.text();
     const auto inlineLimit = format.verticalText ? extent.height() : extent.width();
     const auto blockLimit = format.verticalText ? extent.width() : extent.height();

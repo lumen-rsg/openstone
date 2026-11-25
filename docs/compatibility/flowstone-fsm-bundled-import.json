@@ -1,6 +1,6 @@
 {
   "evidence": "Unchanged .hom bodies in authored .fsm wrappers; import and save/reopen only.",
-  "imported": 40,
+  "imported": 42,
   "checked": 124,
   "skipped_without_matching_body": [
     "0-1 Timed Counter-1",
@@ -263,8 +263,8 @@
       "version": 177,
       "module_offset": "0x77",
       "sha256": "601e3b09ee5dda7e748e065fea539e9e5e3a83d015e44b8bcf38fa3c693ed085",
-      "status": "rejected",
-      "detail": "FlowStone import: Unsupported Ruby port type at byte 0x64e (Root/Root/Edit Box)"
+      "status": "imported",
+      "detail": "177, 32 nodes, 30 links, 0 source links"
     },
     {
       "module": "Envelope Follower",
@@ -336,7 +336,7 @@
       "module_offset": "0x65",
       "sha256": "9782ecc0f83af61229693510b2529f0efe7a41036c508f6b2caf2a4b3d9c0739",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported Ruby port type at byte 0x1003d (Root/Root/Graph Display/Controls/Edit Box)"
+      "detail": "FlowStone import: Unsupported component ID 249 (0xf9) at byte 0x10315 (Root/Root/Graph Display/Controls/Edit Box/Font Property/Font Family Property/Fonts)"
     },
     {
       "module": "Graph Shaper",
@@ -423,8 +423,8 @@
       "version": 166,
       "module_offset": "0x67",
       "sha256": "6049d5d91e8d84e6d678d5eee00a7d8e8646b96abd1f7f29cf7a1ca24c0c1e3d",
-      "status": "rejected",
-      "detail": "FlowStone import: Unsupported Ruby port type at byte 0x2d6 (Root/Root/Label/Drawing)"
+      "status": "imported",
+      "detail": "166, 33 nodes, 30 links, 0 source links"
     },
     {
       "module": "MIDI In Selector",
@@ -536,7 +536,7 @@
       "module_offset": "0x44",
       "sha256": "c1271768a562ff1ac9103ae7107eabeed39f20b0ee05e7393bd7c59395325f6a",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported Ruby port type at byte 0xaefb (Root/Root/Mono Stream Graph Display/Graph Display/Controls/Edit Box)"
+      "detail": "FlowStone import: Unsupported component ID 249 (0xf9) at byte 0xb1d3 (Root/Root/Mono Stream Graph Display/Graph Display/Controls/Edit Box/Font Property/Font Family Property/Fonts)"
     },
     {
       "module": "Mono Stream Record Samples",
@@ -704,7 +704,7 @@
       "module_offset": "0x44",
       "sha256": "5f54678a314d9369c6f23c560f291eb46edf6d33adcd77b9b750485cd4879eb6",
       "status": "rejected",
-      "detail": "FlowStone import: Unsupported Ruby port type at byte 0xae60 (Root/Root/Poly Stream Graph Display/Graph Display/Controls/Edit Box)"
+      "detail": "FlowStone import: Unsupported component ID 249 (0xf9) at byte 0xb138 (Root/Root/Poly Stream Graph Display/Graph Display/Controls/Edit Box/Font Property/Font Family Property/Fonts)"
     },
     {
       "module": "Poly Stream Record Samples",
