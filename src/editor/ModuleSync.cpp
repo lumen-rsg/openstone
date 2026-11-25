@@ -27,6 +27,7 @@ bool isPathPrefix(std::span<const int> prefix, std::span<const int> path)
 std::optional<green::Value> authoredValue(const SchematicNode& node)
 {
     const auto behavior = primitive(node.kind).behavior;
+    if (node.kind == PrimitiveKind::SampleAndHold && node.flowStoneSampleAndHold) return node.localValue;
     if (behavior == PrimitiveBehavior::Counter) {
         return std::int32_t{0};
     }
@@ -895,6 +896,7 @@ bool Session::sameModule(const Schematic& a, const Schematic& b)
             first.typeOverride != second.typeOverride || first.label != second.label ||
             first.codeSourcePorts != second.codeSourcePorts ||
             first.compareArrayElements != second.compareArrayElements ||
+            first.flowStoneSampleAndHold != second.flowStoneSampleAndHold ||
             first.wirelessLabel != second.wirelessLabel || first.panelHidden != second.panelHidden ||
             first.showPanelInParent != second.showPanelInParent || first.panelAnchors != second.panelAnchors ||
             first.anchorReference != second.anchorReference ||

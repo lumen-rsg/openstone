@@ -188,6 +188,12 @@ BITMAP_LIFECYCLE_MODULES = {
     'Detuner Bitmap': (0x3342, 0x44b3),
 }
 
+REDRAW_LIMITER_MODULES = {
+    'Multi LFO Speed': ('Multi LFO', 0x37a5, 0x3846, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
+    'Multi LFO Depth': ('Multi LFO', 0x5f78, 0x6019, '8009c16ef388eaf3b80323cb4ce050d0c20a67f43a18f7925dd5fc278f533f2d'),
+    'Detuner': ('Detuner', 0x49ed, 0x4a8e, 'bffc0fd90a7779790d4d88bb98c2a46c10b1e01bc80c53051a13e6b9f3301f50'),
+}
+
 
 def gui_record_document(record, name, version, *, node_count=1, links=()):
     header = struct.pack('<HIIH', version, 1, 1, 0) + bytes(3) + b'\1' + bytes(12)
@@ -532,6 +538,16 @@ def main():
             archive.writestr('schematic.osm', wrap(data[:end], 'Bitmap', struct.unpack_from('<H', data)[0], start))
         paths.append(str(path))
     subprocess.run([str(args.probe.resolve()), '--bitmap-lifecycle-modules', *paths], check=True)
+
+    paths = []
+    for name, (source, start, end, digest) in REDRAW_LIMITER_MODULES.items():
+        data = (args.flowstone_root / 'Modules' / (source + '.hom')).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest: raise ValueError('Bundled RedrawLimiter module hash changed: ' + source)
+        path = args.output / (name + ' RedrawLimiter.fsm')
+        with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('schematic.osm', wrap(data[:end], 'RedrawLimiter', struct.unpack_from('<H', data)[0], start))
+        paths.append(str(path))
+    subprocess.run([str(args.probe.resolve()), '--redraw-limiter-modules', *paths], check=True)
 
     records, modules = [], []
     for source, (start, end, offset, digest) in MIDI_CC_MODULES.items():

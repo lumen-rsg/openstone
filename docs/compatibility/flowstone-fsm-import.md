@@ -96,6 +96,9 @@ are not silently replaced with empty modules or disconnected nodes.
 - Last Switch (1054), with its generic connector/type/lock lists and saved active
   input. Homogeneous supported Green types retain the selected input through
   conversion and saving as `.ostone`.
+- Generic Sample and Hold (1053), with Value/Sample inputs, Held output and its
+  cached Float, Int, Boolean or String value. Redraw Limiter (478) maps to the
+  existing redraw gate; complete bundled `RedrawLimiter` modules are supported.
 - MIDI Control Change (166), with MIDI/CC inputs and Integer Value/Trigger
   Changed outputs. The record has no payload beyond its common node header.
   Its selected controller comes from the live CC input; incoming MIDI state is
@@ -292,6 +295,38 @@ image; they do not load an image file. Copying retains independent Bitmap
 storage, so a later file selection in the copy updates only that copy's image
 and its Width/Height monitors. Project serialization uses the ordinary
 After Duplicate primitive kind, with no additional compatibility flag.
+
+## Redraw Limiter conversion
+
+The bundled `RedrawLimiter` is a four-node module, comprising a Float input,
+Float output, generic Sample and Hold (1053), and Redraw Limiter (478). Its
+original four links are retained, including their order: the Float input
+notifies the redraw gate, whose accepted trigger samples the current value.
+Input changes between accepted events leave the held output unchanged.
+
+Record 478 is payload-free, with one Trigger input and one Trigger output.
+Record 1053 begins with the common generic connector/type/lock lists, followed
+by a cache determined by its Value type: a raw DWORD for Float or signed Int,
+a Boolean byte, or an MFC CString. Unresolved Value ports have no cache bytes
+and can specialize later. Mixed connector types, invalid fixed Sample types,
+bad locks and unsupported cached-value types fail explicitly. Other native
+cache formats, including arrays, Area/Color and resource handles, are outside
+this pass.
+
+Imported holds carry the `flowStoneSampleAndHold` project flag, preserving their
+held value in project files and module copies without inventing a Sample event.
+Sampling updates the value and notifies on every Sample trigger, including
+repeated equal values; the Value input alone does neither. Ordinary OpenStone
+holds retain their existing transient-cache policy. Saved native caches with a
+conflicting declared type reject before replacing the current project.
+
+The native 478 description limits triggers to the redraw rate and suppresses
+them when redraws are suspended. Its implementation uses the Windows document
+message loop. Imported gates use OpenStone's existing clock-based policy: pass
+the first event and then at most one per 10 ms, suppress events during preset
+redraw suspension or while a plug-in editor is hidden, and resume on a new
+event. There is no deferred catch-up event. This verifies OpenStone's scheduler
+behavior, not exact Windows message-loop coalescing or display-rate parity.
 
 ## Native routing conversion
 
@@ -691,6 +726,11 @@ Useful serializer addresses in that build (image base `0x140000000`):
 | After Duplicate (551) factory / constructor | `0x1400d2090` / `0x1402e0510` |
 | After Duplicate specific load/save (no payload) | `0x14000d180` |
 | After Duplicate lifecycle dispatch | `0x1402e0580` |
+| Sample and Hold (1053) native load / save | `0x14031f6d0` / `0x1403214b0` |
+| Sample and Hold type storage / Sample callback | `0x14031e950` / `0x14031f690` |
+| Redraw Limiter (478) factory | `0x1400d9e10` |
+| Redraw Limiter specific load/save (no payload) | `0x14000d180` |
+| Native redraw gate / queued redraw dispatch | `0x14037deb0` / `0x14037dfc0` |
 | Preset Float factory / constructor | `0x1400d99f0` / `0x140092ff0` |
 | Preset Float load / save | `0x140093f10` / `0x140094460` |
 | Preset Float input / init callbacks | `0x140093cd0` / `0x1400931b0` |
@@ -1190,11 +1230,33 @@ clipboard isolation, duplicate-time link availability and invalid/truncated
 headers or connector indices. Reopening checks persisted duplicate counters
 separately from expected new After Load events.
 
-The latest inventory remains **24/124** complete enclosing-module imports and
+The After Duplicate inventory remained **24/124** complete enclosing-module imports and
 save/reopens. Detuner and Multi LFO now pass their Bitmap loader submodules and
 reach component 1053 in `Preset/RedrawLimiter`. Switch parses its primitive
 records but stops on an unsupported linked code-source producer. Internal
 submodule tests do not imply full support for those enclosing vendor modules.
+
+The Redraw Limiter pass imports three complete unchanged four-node/four-link
+submodules from Multi LFO Speed (`0x37a5`–`0x3846`), Multi LFO Depth
+(`0x5f78`–`0x6019`), and Detuner (`0x49ed`–`0x4a8e`), with end offsets exclusive.
+Each retains its cached Float word `0x3ed5ab57` before the first input event.
+Headless tests inject a monotonic clock, check immediate/burst/10 ms boundary
+events, explicit redraw suspension, hidden/open plug-in editors and the current
+value sampled through the original link order. Disk save/reopen preserves the
+held output, controls and links; the scheduler starts with no stale timestamp.
+
+Authored fixtures cover versions 154, 159, 161, 166, 171 and 177, Float/Int/Boolean/
+String caches, later-specialized unresolved connectors, passive Value changes,
+repeated Sample events, native cache persistence in module copies and unchanged
+ordinary-hold behavior. Malformed caches, headers, fixed ports and lock indices
+reject atomically. The public tests contain only authored data and native module
+hashes/offsets, with vendor bytes supplied by the external reference corpus.
+
+The latest Redraw Limiter inventory remains **24/124** complete enclosing-module
+imports/save-reopens. Detuner and Multi LFO now pass `Preset/RedrawLimiter` and
+reach Boolean Not (256) in their containing Preset modules. Internal module
+coverage has advanced; those complete enclosing modules still require more
+record mappings.
 
 Independent GUI fixtures exercise all four panel IDs across versions 154, 155,
 170 and 177; actual text drawing commands; anchor metadata; live legacy size and

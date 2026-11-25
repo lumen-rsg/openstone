@@ -627,6 +627,19 @@ public:
                 if (version >= 170) genericMath(n); else n.typeOverride = Type::Float;
                 break;
             case 429: n.kind = FromDecibel; genericMath(n); break;
+            case 1053:
+                n.kind = SampleAndHold; genericMath(n); n.flowStoneSampleAndHold = true;
+                if (!n.typeOverride) break;
+                switch (*n.typeOverride) {
+                case Type::Float: n.localValue = std::bit_cast<float>(u32()); break;
+                case Type::Int: n.localValue = std::bit_cast<qint32>(u32()); break;
+                case Type::Boolean: n.localValue = boolean(); break;
+                case Type::String: n.localValue = string(); break;
+                case Type::Trigger: break;
+                default: fail("Unsupported Sample and Hold cached-value type");
+                }
+                break;
+            case 478: n.kind = RedrawLimiter; break;
             case 258: n.kind = AfterLoad; break;
             case 551: n.kind = AfterDuplicate; break;
             case 166: n.kind = MidiCC; break; // No primitive-specific state.

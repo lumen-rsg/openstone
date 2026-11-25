@@ -2946,6 +2946,126 @@ void nativeBitmapLifecycleModule(const QString& path) {
     std::cout<<path.toStdString()<<": complete native Bitmap module, duplicate notifications, independent loading and disk save/reopen passed\n";
 }
 
+void heldRecord(Bytes& b, quint32 type, const green::Value& initial, bool locked = true) {
+    b.d(2); b.d(type); b.d(9); b.d(1); b.d(type);
+    b.d(locked ? 1 : 0); if (locked) b.d(0); b.d(0);
+    if (type==2) b.f(std::get<float>(initial));
+    else if (type==3) b.d(std::bit_cast<quint32>(std::get<std::int32_t>(initial)));
+    else if (type==15) b.b(std::get<bool>(initial));
+    else if (type==1) b.str(QByteArray::fromStdString(std::get<std::string>(initial)));
+}
+Bytes heldDocument(int version, quint32 type, const green::Value& initial) {
+    Bytes b; header(b,version); beginModule(b,"Root",1); beginModule(b,"Held value",2);
+    primitive(b,1053,2,3,"Held"); heldRecord(b,type,initial);
+    primitive(b,29,10,3); b.f(8); b.b(0); b.b(0); b.d(123);
+    b.w(0); endModule(b); b.w(0); endModule(b); b.w(0); b.b(0); return b;
+}
+void importedHeldValues() {
+    using enum PrimitiveKind;
+    using green::Value;
+    const std::vector<std::tuple<quint32,PrimitiveKind,Value,Value>> cases{
+        {2,Float,1.25f,-3.5f},{3,Int,std::int32_t{-123},std::int32_t{2147483647}},
+        {15,Boolean,false,true},{1,String,std::string{"before"},std::string{"after"}}};
+    for (int version : {154,159,161,166,171,177}) for (const auto& [type,kind,initial,next] : cases) {
+        const auto raw=heldDocument(version,type,initial); Session s; SchematicFile::importFlowStone(s,zip(raw),{}); auto& g=*s.graph().module(1);
+        check(g.nodes()[0].kind==SampleAndHold && g.nodes()[0].flowStoneSampleAndHold && g.readValue(1)==initial &&
+              g.readValue(2)==Value{std::int32_t{123}},"Import typed held cache and resume at the following record");
+        const auto value=g.addNode(kind,0,0,next), pulse=g.addNode(Trigger,0,0);
+        g.connect({value,1,0},LinkNotification::Silent); g.connect({pulse,1,1},LinkNotification::Silent);
+        check(g.readValue(1)==initial && g.inspectOutput(1).triggers==0,"Value wiring leaves the imported cache untouched");
+        g.setValue(value,initial); g.setValue(value,next);
+        check(g.readValue(1)==initial && g.inspectOutput(1).triggers==0,"Value changes alone do not sample or publish");
+        g.fireTrigger(pulse); g.fireTrigger(pulse);
+        check(g.readValue(1)==next && g.inspectOutput(1).triggers==2,"Every Sample event captures the current value and publishes, including equal samples");
+        const auto saved=SchematicFile::project(s); QTemporaryDir dir; const auto file=dir.filePath("held.ostone"); SchematicFile::write(file,saved);
+        Session reopened; SchematicFile::loadProject(reopened,SchematicFile::read(file),{});
+        check(SchematicFile::project(reopened)==saved && reopened.graph().module(1)->readValue(1)==next &&
+              reopened.graph().module(1)->inspectOutput(1).triggers==0,"Native held values survive disk save/reopen without a sample event");
+        const auto copy=reopened.duplicateNodes(std::array{1},24,24);
+        check(copy.size()==1 && reopened.graph().module(copy[0])->readValue(1)==next &&
+              reopened.graph().module(copy[0])->inspectOutput(1).triggers==0,"Copied native Sample and Hold retains its cache without firing");
+        Bytes prefix; primitive(prefix,1053,2,3,"Held"); const auto at=raw.indexOf(prefix), payload=at+prefix.size();
+        for (int cut=0;cut<prefix.size()+32;++cut) expectError(zip(raw.left(at+cut)),"Truncated");
+        auto bad=raw; qToLittleEndian<quint32>(2,bad.data()+payload+8); expectError(zip(bad),"fixed generic connector type");
+        bad=raw; qToLittleEndian<quint32>(2,bad.data()+payload+24); expectError(zip(bad),"locked connector");
+        if (type==15) { bad=raw; bad[payload+32]=2; expectError(zip(bad),"Boolean"); }
+    }
+    // Native unresolved connectors have no cache bytes; they can specialize later.
+    Session inferred; SchematicFile::importFlowStone(inferred,zip(heldDocument(177,0,{})),{}); auto& g=*inferred.graph().module(1);
+    const auto value=g.addNode(Float,0,0,4.5f), pulse=g.addNode(Trigger,0,0);
+    g.connect({value,1,0},LinkNotification::Silent); g.connect({pulse,1,1},LinkNotification::Silent); g.fireTrigger(pulse);
+    Session restored; SchematicFile::loadProject(restored,SchematicFile::project(inferred),{});
+    check(restored.graph().module(1)->readValue(1)==Value{4.5f},"A later-specialized native hold can persist its captured value");
+    expectError(zip(heldDocument(177,8,{})),"cached-value type");
+    // The native persistence policy must not change ordinary OpenStone holds.
+    Session ordinary; auto& controls=ordinary.graph();
+    const auto hold=controls.addNode(SampleAndHold,0,0), source=controls.addNode(Float,0,0,7.f), trigger=controls.addNode(Trigger,0,0);
+    ordinary.connect({source,hold,0}); ordinary.connect({trigger,hold,1}); ordinary.graph().fireTrigger(trigger);
+    Session fresh; SchematicFile::loadProject(fresh,SchematicFile::project(ordinary),{});
+    check(fresh.graph().readValue(hold)==Value{0.f},"Ordinary Sample and Hold keeps its existing transient cache policy");
+    auto doc=QJsonDocument::fromJson(SchematicFile::project(inferred)).object(); auto root=doc["root"].toObject(); auto nodes=root["nodes"].toArray();
+    auto module=nodes[0].toObject(); auto children=module["nodes"].toArray(); auto node=children[0].toObject();
+    node["typeOverride"]=int(green::Type::Float); node["value"]=QJsonObject{{"type",int(green::Type::Int)},{"data",7}};
+    children[0]=node; module["nodes"]=children; nodes[0]=module; root["nodes"]=nodes; doc["root"]=root;
+    const auto before=SchematicFile::project(ordinary); bool touched=false,rejected=false;
+    try { SchematicFile::loadProject(ordinary,QJsonDocument(doc).toJson(),[&] { touched=true; }); }
+    catch (const std::exception& e) { rejected=std::string(e.what()).find("native Sample and Hold cache")!=std::string::npos; }
+    check(rejected && !touched && SchematicFile::project(ordinary)==before,"Invalid saved native cache rejects before replacing the project");
+}
+Bytes redrawLimiterDocument(int version) {
+    Bytes b; header(b,version); beginModule(b,"Root",1); beginModule(b,"RedrawLimiter",4);
+    primitive(b,139,20,3); b.d(2); b.b(0); b.str("Out");
+    primitive(b,138,0,3); b.d(2); b.b(0); b.str("In");
+    primitive(b,1053,10,3); heldRecord(b,2,std::bit_cast<float>(quint32{0x3ed5ab57}));
+    primitive(b,478,10,6);
+    b.w(4); wire(b,version,1,0,3,0); wire(b,version,3,0,2,1); wire(b,version,1,0,2,0); wire(b,version,2,0,0,0); endModule(b);
+    b.w(0); endModule(b); b.w(0); b.b(0); return b;
+}
+void redrawLimiterRoundTrip(const QByteArray& archive) {
+    using namespace std::chrono_literals;
+    using enum PrimitiveKind;
+    using green::Value;
+    TickTime now{}; const Schematic::SystemInfoBackend system{.monotonicClock=[&] { return now; }};
+    Session s({}, {}, {}, {}, system); SchematicFile::importFlowStone(s,archive,{}); auto& child=*s.graph().module(1);
+    check(child.nodes().size()==4 && child.links().size()==4 && child.nodes()[2].kind==SampleAndHold && child.nodes()[2].flowStoneSampleAndHold &&
+          child.nodes()[3].kind==RedrawLimiter && s.graph().readValue(1)==Value{std::bit_cast<float>(quint32{0x3ed5ab57})},
+          "Import complete RedrawLimiter module, typed cache and original link order");
+    const auto source=s.graph().addNode(Float,0,0,-100.f); s.graph().connect({source,1,0},LinkNotification::Silent);
+    const auto verify=[&](Schematic& root) {
+        auto& g=*root.module(1); now=TickTime{}; root.setRedrawsSuspended(false); root.setPluginHostInfo({});
+        const auto before=g.inspectOutput(3).triggers; std::uint64_t passed=0; float held=std::get<float>(root.readValue(1));
+        const auto send=[&](TickTime::duration time,float input,bool accept) {
+            now=TickTime{time}; root.setValue(source,input); if (accept) { held=input; ++passed; }
+            check(root.readValue(1)==Value{held} && g.inspectOutput(3).triggers==before+passed && g.inspectOutput(4).triggers==before+passed,
+                  "Redraw gate samples the current input only on accepted events and holds it between updates");
+        };
+        send(0ms,.1f,true); send(0ms,.2f,false); send(9ms,.3f,false); send(9999us,.4f,false); send(10ms,.5f,true); send(20ms,.7f,true);
+        root.setRedrawsSuspended(true); send(30ms,.8f,false); root.setRedrawsSuspended(false);
+        check(root.readValue(1)==Value{.7f},"Resuming redraws does not synthesize a sampling event"); send(30ms,.9f,true);
+        root.setPluginHostInfo(PluginHostInfo{"Host","Test","1"}); send(40ms,1.1f,false);
+        root.setPluginEditorOpen(true); send(40ms,1.2f,true); root.setPluginHostInfo({});
+    };
+    verify(s.graph()); const auto saved=SchematicFile::project(s); QTemporaryDir dir; const auto file=dir.filePath("redraw-limiter.ostone");
+    SchematicFile::write(file,saved); Session reopened({}, {}, {}, {}, system); SchematicFile::loadProject(reopened,SchematicFile::read(file),{});
+    check(SchematicFile::project(reopened)==saved && reopened.graph().readValue(1)==Value{1.2f},"RedrawLimiter held output and all links survive disk save/reopen");
+    verify(reopened.graph());
+}
+void importedRedrawLimiters() {
+    for (int version : {154,159,161,166,171,177}) {
+        const auto raw=redrawLimiterDocument(version); redrawLimiterRoundTrip(zip(raw));
+        Bytes prefix; primitive(prefix,478,10,6); const auto at=raw.indexOf(prefix); check(at>0,"Locate redraw gate header");
+        for (int cut=0;cut<prefix.size();++cut) expectError(zip(raw.left(at+cut)),"Truncated");
+        Bytes link; wire(link,version,1,0,3,0); const auto wireAt=raw.indexOf(link,at+prefix.size()); check(wireAt>0,"Locate redraw gate wire");
+        auto bad=raw; bad[wireAt+6]=1; expectError(zip(bad),"connector index");
+        link.clear(); wire(link,version,3,0,2,1); bad=raw; const auto outputAt=bad.indexOf(link,wireAt);
+        check(outputAt>0,"Locate gate output wire"); bad[outputAt+3]=1; expectError(zip(bad),"connector index");
+    }
+}
+void nativeRedrawLimiterModule(const QString& path) {
+    redrawLimiterRoundTrip(SchematicFile::read(path));
+    std::cout<<path.toStdString()<<": complete native RedrawLimiter, held output, host suspension and disk save/reopen passed\n";
+}
+
 void importedStateRecords() {
     for(int version:{154,159,166,171,177}) {
         for(bool layout:{false,true}) for(bool properties:{false,true}) for(int selected:{-1,0,1,42}) {
@@ -3653,6 +3773,8 @@ int main(int argc, char** argv) {
     try {
         if (argc > 1 && QByteArray(argv[1]) == "--shape-records") {
             for(int i=2;i<argc;++i)nativeShapeRecord(QString::fromLocal8Bit(argv[i]));
+        } else if (argc > 1 && QByteArray(argv[1]) == "--redraw-limiter-modules") {
+            check(argc>2,"Native RedrawLimiter modules required"); for(int i=2;i<argc;++i) nativeRedrawLimiterModule(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--after-duplicate-records") {
             check(argc>2,"Native After Duplicate records required"); for(int i=2;i<argc;++i) nativeAfterDuplicateRecord(QString::fromLocal8Bit(argv[i]));
         } else if (argc > 1 && QByteArray(argv[1]) == "--bitmap-lifecycle-modules") {
@@ -3737,7 +3859,7 @@ int main(int argc, char** argv) {
                 Session s; SchematicFile::importFlowStone(s, SchematicFile::read(QString::fromLocal8Bit(argv[i])), {});
                 Session reopened; SchematicFile::loadProject(reopened, SchematicFile::project(s), {});
             }
-        } else { importsAndRoundTrips(); rejectsInvalidFiles(); codePorts(); valuesAndRuby(); linkedCodeSources(); compiledCaches(); valueLayouts(); propertyPanelLayouts(); genericMathRecords(); floatDeZipperRecord(); importedPanels(); legacyPanelControls(); inheritedViews(); propertyWireless(); guiDrawing(); guiSelectorAndRoutedLinks(); penAndFontProperties(); stringFormatsAndBrushes(); customRadialPaths(); importedShapes(); importedDrawingControls(); importedColorConversions(); importedViewCaches(); importedComparisons(); importedRouting(); importedStateRecords(); importedAudioRecords(); importedGeneratorRecords(); importedDropLists(); importedPresets(); importedRouters(); importedMidiCc(); importedBitmaps(); importedFileDialogs(); importedButtons(); importedAfterDuplicate(); heldClose(); }
+        } else { importsAndRoundTrips(); rejectsInvalidFiles(); codePorts(); valuesAndRuby(); linkedCodeSources(); compiledCaches(); valueLayouts(); propertyPanelLayouts(); genericMathRecords(); floatDeZipperRecord(); importedPanels(); legacyPanelControls(); inheritedViews(); propertyWireless(); guiDrawing(); guiSelectorAndRoutedLinks(); penAndFontProperties(); stringFormatsAndBrushes(); customRadialPaths(); importedShapes(); importedDrawingControls(); importedColorConversions(); importedViewCaches(); importedComparisons(); importedRouting(); importedStateRecords(); importedAudioRecords(); importedGeneratorRecords(); importedDropLists(); importedPresets(); importedRouters(); importedMidiCc(); importedBitmaps(); importedFileDialogs(); importedButtons(); importedAfterDuplicate(); importedHeldValues(); importedRedrawLimiters(); heldClose(); }
         std::cout << "FlowStone import tests passed\n"; return 0;
     } catch (const std::exception& e) { std::cerr << e.what() << '\n'; return 1; }
 }

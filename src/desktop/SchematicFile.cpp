@@ -501,6 +501,7 @@ QJsonObject SchematicFile::encode(const Session::NodeCopy& copy, std::optional<d
     };
     if (node.compareArrayElements) object.insert("compareArrayElements", true);
     if (node.flowStoneFileDialog) object.insert("flowStoneFileDialog", true);
+    if (node.flowStoneSampleAndHold) object.insert("flowStoneSampleAndHold", true);
     if (node.flowStoneRoutingBranches) {
         QJsonObject routing{{"branches", *node.flowStoneRoutingBranches}};
         if (node.kind == PrimitiveKind::LastSwitch) routing.insert("lastInput", node.lastSwitchInput);
@@ -684,6 +685,12 @@ Session::NodeCopy SchematicFile::decode(const QJsonObject& object, int depth, st
     if (object.contains("flowStoneFileDialog")) {
         if (node.kind != PrimitiveKind::FileDialog || !object["flowStoneFileDialog"].isBool()) invalid("native File Dialog state");
         node.flowStoneFileDialog = object["flowStoneFileDialog"].toBool();
+    }
+    if (object.contains("flowStoneSampleAndHold")) {
+        if (node.kind != PrimitiveKind::SampleAndHold || !object["flowStoneSampleAndHold"].isBool()) invalid("native Sample and Hold state");
+        node.flowStoneSampleAndHold = object["flowStoneSampleAndHold"].toBool();
+        if (node.flowStoneSampleAndHold && node.localValue && node.typeOverride &&
+            green::typeOf(*node.localValue) != node.typeOverride) invalid("native Sample and Hold cache");
     }
     if (node.kind == PrimitiveKind::WaveFileArray) {
         node.waveFile.excludeSamples = object["waveNoSave"].toBool(false);
